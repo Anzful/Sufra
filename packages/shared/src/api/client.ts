@@ -1,5 +1,10 @@
 import { DomainError } from '../domain/errors.ts'
-import { generationResultSchema, mealPlanRequestSchema } from '../schemas/meal-plan.ts'
+import {
+  generationResultSchema,
+  mealPlanRequestSchema,
+  planEditRequestSchema,
+  planEditResultSchema,
+} from '../schemas/meal-plan.ts'
 import { profileInputSchema } from '../schemas/profile.ts'
 import type { SufraApi } from './contracts.ts'
 
@@ -42,6 +47,17 @@ export function createSufraApi(transport: SufraTransport): SufraApi {
         })
       }
       return generationResultSchema.parse(result.data)
+    },
+
+    async updateWeeklyPlan(input) {
+      const request = planEditRequestSchema.parse(input)
+      const result = await transport.functions.invoke('update-weekly-plan', { body: request })
+      if (result.error) {
+        throw new DomainError('PLAN_UPDATE_FAILED', 'Could not update the weekly plan.', {
+          transportMessage: result.error.message,
+        })
+      }
+      return planEditResultSchema.parse(result.data)
     },
   }
 }

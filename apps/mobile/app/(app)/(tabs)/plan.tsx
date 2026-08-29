@@ -12,6 +12,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -24,7 +25,12 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Card, PrimaryButton, Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
 import { isMockMode } from '@/lib/data-mode'
-import { generatePlanMock, getMockSnapshot, swapMealMock } from '@/lib/mock-store'
+import {
+  generatePlanMock,
+  getMockSnapshot,
+  setMealServingsMock,
+  swapMealMock,
+} from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
 import { useLocale } from '@/providers/locale-provider'
 
@@ -35,6 +41,8 @@ interface PlanRow {
   summary_en: string | null
   estimated_cost_gel: number | null
   average_daily_calories: number | null
+  updated_at: string
+  validation_warnings: string[]
 }
 
 interface MealRow {
@@ -45,11 +53,17 @@ interface MealRow {
   protein_g: number
   carbohydrate_g: number
   fat_g: number
+  servings: number
   alternative_recipe_ids?: string[]
   recipes: {
     id: string
     recipe_translations: Array<{ locale: Locale; title: string }>
   }
+}
+
+interface RecipeOption {
+  id: string
+  title: string
 }
 
 function recipeTitle(meal: MealRow, locale: Locale): string {
@@ -70,8 +84,11 @@ export default function PlanScreen() {
   const { locale, setLocale } = useLocale()
   const [plan, setPlan] = useState<PlanRow | null>(null)
   const [meals, setMeals] = useState<MealRow[]>([])
+  const [recipeOptions, setRecipeOptions] = useState<RecipeOption[]>([])
+  const [selectedMeal, setSelectedMeal] = useState<MealRow | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [message, setMessage] = useState('')
 
   async function load() {
@@ -93,7 +110,12 @@ export default function PlanScreen() {
         summary_en: mockPlan.summary.en,
         estimated_cost_gel: mockPlan.estimatedCostGel,
         average_daily_calories: mockPlan.averageDailyNutrition.calories,
+        updated_at: new Date(0).toISOString(),
+        validation_warnings: mockPlan.warnings,
       })
+      setRecipeOptions(
+        snapshot.recipes.map((recipe) => ({ id: recipe.id, title: recipe.title[locale] })),
+      )
       setMeals(
         mockPlan.meals.map((meal) => {
           const recipe = recipes.get(meal.recipeId)
@@ -105,6 +127,7 @@ export default function PlanScreen() {
             protein_g: meal.nutrition.proteinG,
             carbohydrate_g: meal.nutrition.carbohydrateG,
             fat_g: meal.nutrition.fatG,
+            servings: meal.servings,
             alternative_recipe_ids: meal.alternativeRecipeIds,
             recipes: {
               id: meal.recipeId,
@@ -124,7 +147,7 @@ export default function PlanScreen() {
     const planResult = await supabase
       .from('weekly_plans')
       .select(
-        'id, week_start_date, summary_ka, summary_en, estimated_cost_gel, average_daily_calories',
+        'id, week_start_date, summary_ka, summary_en, estimated_cost_gel, average_daily_calories, updated_at, validation_warnings',
       )
       .eq('week_start_date', getWeekStartDate())
       .eq('is_current', true)
@@ -136,15 +159,34 @@ export default function PlanScreen() {
       return
     }
     setPlan(planResult.data as PlanRow)
-    const mealsResult = await supabase
-      .from('planned_meals')
-      .select(
-        'id, day_index, meal_slot, calories, protein_g, carbohydrate_g, fat_g, recipes!inner(id, recipe_translations(locale, title))',
-      )
-      .eq('weekly_plan_id', planResult.data.id)
-      .order('day_index')
-      .order('slot_position')
+    const [mealsResult, recipesResult] = await Promise.all([
+      supabase
+        .from('planned_meals')
+        .select(
+          'id, day_index, meal_slot, servings, calories, protein_g, carbohydrate_g, fat_g, recipes!inner(id, recipe_translations(locale, title))',
+        )
+        .eq('weekly_plan_id', planResult.data.id)
+        .order('day_index')
+        .order('slot_position'),
+      supabase
+        .from('recipes')
+        .select('id, recipe_translations(locale, title)')
+        .eq('status', 'published')
+        .order('created_at'),
+    ])
     setMeals((mealsResult.data ?? []) as unknown as MealRow[])
+    setRecipeOptions(
+      (recipesResult.data ?? []).map((recipe) => {
+        const translations = recipe.recipe_translations as Array<{ locale: Locale; title: string }>
+        return {
+          id: String(recipe.id),
+          title:
+            translations.find((translation) => translation.locale === locale)?.title ??
+            translations[0]?.title ??
+            String(recipe.id),
+        }
+      }),
+    )
     setLoading(false)
   }
 
@@ -172,11 +214,33 @@ export default function PlanScreen() {
     setGenerating(false)
   }
 
-  function swap(meal: MealRow) {
-    const replacementId = meal.alternative_recipe_ids?.[0]
-    if (!replacementId || !isMockMode()) return
-    swapMealMock(meal.id, replacementId)
-    void load()
+  async function editMeal(input: { replacementRecipeId?: string; servings?: number }) {
+    if (!plan || !selectedMeal) return
+    setEditing(true)
+    setMessage('')
+    try {
+      if (isMockMode()) {
+        if (input.replacementRecipeId) swapMealMock(selectedMeal.id, input.replacementRecipeId)
+        if (input.servings !== undefined) setMealServingsMock(selectedMeal.id, input.servings)
+      } else {
+        await createSufraApi(supabase as unknown as SufraTransport).updateWeeklyPlan({
+          planId: plan.id,
+          mealId: selectedMeal.id,
+          expectedUpdatedAt: plan.updated_at,
+          locale,
+          ...input,
+        })
+      }
+      setSelectedMeal(null)
+      await load()
+    } catch {
+      setMessage(
+        locale === 'ka'
+          ? 'ცვლილება ვერ შეინახა. განაახლე გეგმა ან სხვა რეცეპტი სცადე.'
+          : 'Could not save the edit. Refresh the plan or try another recipe.',
+      )
+    }
+    setEditing(false)
   }
 
   if (loading)
@@ -262,6 +326,16 @@ export default function PlanScreen() {
                 </Text>
               </View>
             </View>
+            {plan.validation_warnings.length ? (
+              <View style={styles.warning}>
+                <Text style={styles.warningText}>
+                  {locale === 'ka'
+                    ? 'ზოგი ფასი, კვებითი მონაცემი ან მიზანი სავარაუდოა. ცვლილების შემდეგ გადაამოწმე კვირის ჯამები.'
+                    : 'Some pricing, nutrition data, or targets are estimates. Review the weekly totals after an edit.'}
+                </Text>
+              </View>
+            ) : null}
+            {message ? <Text style={styles.message}>{message}</Text> : null}
             {Array.from({ length: 7 }, (_, dayIndex) => (
               <View key={dayIndex} style={styles.day}>
                 <Text style={styles.dayTitle}>
@@ -290,19 +364,16 @@ export default function PlanScreen() {
                           {Math.round(Number(meal.carbohydrate_g))}C ·{' '}
                           {Math.round(Number(meal.fat_g))}F
                         </Text>
-                        {isMockMode() && meal.alternative_recipe_ids?.length ? (
-                          <Pressable
-                            onPress={(event) => {
-                              event.stopPropagation()
-                              swap(meal)
-                            }}
-                            style={styles.swap}
-                          >
-                            <Text style={styles.swapText}>
-                              {locale === 'ka' ? 'შეცვლა' : 'Swap'}
-                            </Text>
-                          </Pressable>
-                        ) : null}
+                        <Pressable
+                          onPress={(event) => {
+                            event.stopPropagation()
+                            setMessage('')
+                            setSelectedMeal(meal)
+                          }}
+                          style={styles.swap}
+                        >
+                          <Text style={styles.swapText}>{locale === 'ka' ? 'შეცვლა' : 'Edit'}</Text>
+                        </Pressable>
                       </View>
                     </Pressable>
                   ))}
@@ -318,6 +389,84 @@ export default function PlanScreen() {
           </>
         )}
       </ScrollView>
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setSelectedMeal(null)}
+        transparent
+        visible={selectedMeal !== null}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.eyebrow}>
+                  {locale === 'ka' ? 'კერძის შეცვლა' : 'EDIT MEAL'}
+                </Text>
+                <Text style={styles.modalTitle}>
+                  {selectedMeal ? recipeTitle(selectedMeal, locale) : ''}
+                </Text>
+              </View>
+              <Pressable onPress={() => setSelectedMeal(null)} style={styles.modalClose}>
+                <Text style={styles.modalCloseText}>×</Text>
+              </Pressable>
+            </View>
+
+            {selectedMeal ? (
+              <>
+                <Text style={styles.modalLabel}>{locale === 'ka' ? 'ულუფები' : 'Servings'}</Text>
+                <View style={styles.servingRow}>
+                  <Pressable
+                    disabled={editing || selectedMeal.servings <= 0.25}
+                    onPress={() =>
+                      editMeal({ servings: Math.max(0.25, selectedMeal.servings - 0.25) })
+                    }
+                    style={styles.servingButton}
+                  >
+                    <Text style={styles.servingButtonText}>−</Text>
+                  </Pressable>
+                  <Text style={styles.servingValue}>{selectedMeal.servings}</Text>
+                  <Pressable
+                    disabled={editing || selectedMeal.servings >= 100}
+                    onPress={() =>
+                      editMeal({ servings: Math.min(100, selectedMeal.servings + 0.25) })
+                    }
+                    style={styles.servingButton}
+                  >
+                    <Text style={styles.servingButtonText}>+</Text>
+                  </Pressable>
+                </View>
+
+                <Text style={styles.modalLabel}>
+                  {locale === 'ka' ? 'აირჩიე სხვა რეცეპტი' : 'Choose another recipe'}
+                </Text>
+                <ScrollView style={styles.recipeList}>
+                  {recipeOptions
+                    .filter(
+                      (recipe) =>
+                        recipe.id !== selectedMeal.recipes.id &&
+                        (!isMockMode() || selectedMeal.alternative_recipe_ids?.includes(recipe.id)),
+                    )
+                    .map((recipe) => (
+                      <Pressable
+                        disabled={editing}
+                        key={recipe.id}
+                        onPress={() => editMeal({ replacementRecipeId: recipe.id })}
+                        style={styles.recipeOption}
+                      >
+                        <Text style={styles.recipeOptionText}>{recipe.title}</Text>
+                        <Text style={styles.recipeOptionArrow}>→</Text>
+                      </Pressable>
+                    ))}
+                </ScrollView>
+                {editing ? (
+                  <ActivityIndicator color={colors.wine} style={{ marginTop: 12 }} />
+                ) : null}
+                {message ? <Text style={styles.message}>{message}</Text> : null}
+              </>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -360,6 +509,15 @@ const styles = StyleSheet.create({
   generateCard: { marginTop: 28 },
   message: { color: colors.danger, fontSize: 13, marginTop: 12 },
   metrics: { flexDirection: 'row', gap: 10, marginVertical: 22 },
+  warning: {
+    backgroundColor: '#fff4d8',
+    borderColor: '#ead69e',
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 18,
+    padding: 13,
+  },
+  warningText: { color: '#715314', fontSize: 12, lineHeight: 18 },
   metric: { backgroundColor: colors.paperDeep, borderRadius: 18, flex: 1, padding: 15 },
   metricLabel: { color: colors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   metricValue: {
@@ -409,4 +567,65 @@ const styles = StyleSheet.create({
   },
   swapText: { color: colors.leaf, fontSize: 10, fontWeight: '900' },
   regenerate: { marginTop: 8 },
+  modalBackdrop: {
+    backgroundColor: 'rgba(34, 24, 20, 0.42)',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '82%',
+    padding: 22,
+    paddingBottom: 36,
+  },
+  modalHeader: { alignItems: 'flex-start', flexDirection: 'row', marginBottom: 20 },
+  modalTitle: { color: colors.ink, fontFamily: 'Georgia', fontSize: 23, fontWeight: '800' },
+  modalClose: {
+    alignItems: 'center',
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  modalCloseText: { color: colors.ink, fontSize: 24, lineHeight: 25 },
+  modalLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 9,
+    marginTop: 12,
+    textTransform: 'uppercase',
+  },
+  servingRow: { alignItems: 'center', flexDirection: 'row', gap: 16, marginBottom: 12 },
+  servingButton: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    width: 52,
+  },
+  servingButtonText: { color: colors.leaf, fontSize: 22, fontWeight: '800' },
+  servingValue: { color: colors.ink, fontFamily: 'Georgia', fontSize: 22, fontWeight: '800' },
+  recipeList: { maxHeight: 280 },
+  recipeOption: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.line,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    padding: 14,
+  },
+  recipeOptionText: { color: colors.ink, flex: 1, fontSize: 14, fontWeight: '800' },
+  recipeOptionArrow: { color: colors.leaf, fontSize: 17, fontWeight: '900' },
 })

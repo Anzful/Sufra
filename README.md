@@ -10,11 +10,12 @@ The repository is a pnpm/Turborepo monorepo with a Next.js web app, Expo mobile 
 - The equivalent native flows for iOS and Android with Expo Router.
 - Shared Zod request/provider schemas, types, translations, unit conversion, nutrition aggregation, candidate filtering, grocery consolidation, budget validation, and week handling.
 - PostgreSQL migrations for identity, preferences, appliances, allergens, diets, ingredients, recipes, plans, grocery lists, Georgian stores, pricing observations, explicit grants, and RLS.
-- Transactional profile saving and generated-plan persistence functions.
+- Transactional profile saving, generated-plan persistence, and concurrency-safe plan editing functions.
 - An authenticated, idempotent, rate-limited meal-plan Edge Function with OpenAI Responses API and Anthropic structured-output adapters.
 - A bounded repair pass followed by deterministic server-side constraint validation. AI output is never trusted for nutrition, pricing, or grocery arithmetic.
 - A small bilingual starter catalogue for development. Its nutrition records are deliberately flagged unverified.
-- A zero-configuration interactive mock mode for web and mobile. It covers mock authentication, onboarding persistence, a full 21-meal week, detailed recipes, plan regeneration, meal swaps, an editable pantry, selected-store price adjustments, deterministic grocery recalculation, an aisle-grouped checklist, settings, and Georgian/English switching.
+- Authenticated meal swaps and serving changes on web and mobile. Every live edit re-applies recipe safety rules and deterministically rebuilds nutrition, pantry deductions, store estimates, and groceries in one transaction.
+- A zero-configuration interactive mock mode for web and mobile. It covers mock authentication, onboarding persistence, a full 21-meal week, detailed recipes, plan regeneration, meal swaps, serving changes, an editable pantry, selected-store price adjustments, deterministic grocery recalculation, an aisle-grouped checklist, settings, and Georgian/English switching.
 
 The broader product and research rationale is in [docs/architecture-blueprint.md](docs/architecture-blueprint.md).
 
@@ -89,7 +90,7 @@ The fixtures live in `packages/shared/src/mock`, so web and mobile exercise the 
 5. Serve the function and clients:
 
    ```bash
-   supabase functions serve generate-weekly-plan --env-file supabase/functions/.env
+   supabase functions serve --env-file supabase/functions/.env
    pnpm dev:web
    pnpm dev:mobile
    ```
@@ -120,6 +121,7 @@ For a hosted project, set secrets with `supabase secrets set` and deploy the fun
 
 ```bash
 supabase functions deploy generate-weekly-plan --use-api
+supabase functions deploy update-weekly-plan --use-api
 ```
 
 ## Verification
@@ -134,9 +136,10 @@ The Edge Function can be checked independently with Deno:
 
 ```bash
 deno check --config supabase/functions/deno.json supabase/functions/generate-weekly-plan/index.ts
+deno check --config supabase/functions/deno.json supabase/functions/update-weekly-plan/index.ts
 ```
 
-Current verification covers all three TypeScript projects, thirteen shared-domain tests, Next.js production compilation, iOS/Android Metro exports, Expo dependency compatibility, and Deno typechecking. A full migration/RLS integration run still requires Docker or a linked Supabase project.
+Current verification covers all three TypeScript projects, sixteen shared-domain tests, Next.js production compilation, iOS/Android Metro exports, Expo dependency compatibility, and Deno typechecking. A full migration/RLS integration run still requires Docker or a linked Supabase project.
 
 ## Data policy before production
 

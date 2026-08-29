@@ -9,7 +9,7 @@ import {
 } from '@sufra/shared'
 import Link from 'next/link'
 
-import { swapMockMealAction } from '@/app/mock-actions'
+import { setMockMealServingsAction, swapMockMealAction } from '@/app/mock-actions'
 
 import { AppHeader } from './app-header'
 import { GeneratePlanButton } from './generate-plan-button'
@@ -215,6 +215,30 @@ export function MockPlanPage({
                             </div>
                           </details>
                         ) : null}
+                        <form
+                          action={setMockMealServingsAction.bind(null, meal.id, locale)}
+                          className="mt-3 flex items-end gap-2 border-t border-[var(--line)] pt-2"
+                        >
+                          <label className="min-w-0 flex-1 text-[0.68rem] font-bold text-[var(--muted)]">
+                            {locale === 'ka' ? 'ულუფები' : 'Servings'}
+                            <input
+                              className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white px-2 py-1.5 text-xs text-[var(--ink)]"
+                              defaultValue={meal.servings}
+                              max="100"
+                              min="0.25"
+                              name="servings"
+                              required
+                              step="0.25"
+                              type="number"
+                            />
+                          </label>
+                          <button
+                            className="rounded-xl border border-[var(--line)] bg-white px-3 py-1.5 text-xs font-black text-[var(--leaf)]"
+                            type="submit"
+                          >
+                            {locale === 'ka' ? 'შენახვა' : 'Save'}
+                          </button>
+                        </form>
                       </div>
                     )
                   })}

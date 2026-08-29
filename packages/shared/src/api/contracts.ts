@@ -1,4 +1,9 @@
-import type { GenerationResult, MealPlanRequest } from '../schemas/meal-plan.ts'
+import type {
+  GenerationResult,
+  MealPlanRequest,
+  PlanEditRequest,
+  PlanEditResult,
+} from '../schemas/meal-plan.ts'
 import type { ProfileInput } from '../schemas/profile.ts'
 
 export interface ApiErrorBody {
@@ -12,6 +17,7 @@ export interface ApiErrorBody {
 export interface SufraApi {
   saveProfile(input: ProfileInput): Promise<void>
   generateWeeklyPlan(input: MealPlanRequest): Promise<GenerationResult>
+  updateWeeklyPlan(input: PlanEditRequest): Promise<PlanEditResult>
 }
 
-export type { GenerationResult, MealPlanRequest, ProfileInput }
+export type { GenerationResult, MealPlanRequest, PlanEditRequest, PlanEditResult, ProfileInput }

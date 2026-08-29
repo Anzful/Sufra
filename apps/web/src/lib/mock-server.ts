@@ -55,6 +55,15 @@ function decodeState(value: string | undefined): MockPersistedState {
               ),
             )
           : {},
+      mealServingOverrides:
+        parsed.mealServingOverrides && typeof parsed.mealServingOverrides === 'object'
+          ? Object.fromEntries(
+              Object.entries(parsed.mealServingOverrides).filter(
+                (entry): entry is [string, number] =>
+                  typeof entry[1] === 'number' && entry[1] >= 0.25 && entry[1] <= 100,
+              ),
+            )
+          : {},
     }
   } catch {
     return fallback

@@ -74,7 +74,31 @@ export const generationResultSchema = z
   })
   .strict()
 
+export const planEditRequestSchema = z
+  .object({
+    planId: z.uuid(),
+    mealId: z.uuid(),
+    expectedUpdatedAt: z.iso.datetime({ offset: true }),
+    replacementRecipeId: z.uuid().optional(),
+    servings: z.number().min(0.25).max(100).optional(),
+    locale: localeSchema,
+  })
+  .strict()
+  .refine((input) => input.replacementRecipeId !== undefined || input.servings !== undefined, {
+    message: 'A replacement recipe or serving quantity is required.',
+  })
+
+export const planEditResultSchema = z
+  .object({
+    planId: z.uuid(),
+    status: z.literal('ready'),
+    warnings: z.array(z.string()),
+  })
+  .strict()
+
 export type MealPlanRequest = z.infer<typeof mealPlanRequestSchema>
 export type AiMealSelection = z.infer<typeof aiMealSelectionSchema>
 export type AiWeeklyPlan = z.infer<typeof aiWeeklyPlanSchema>
 export type GenerationResult = z.infer<typeof generationResultSchema>
+export type PlanEditRequest = z.infer<typeof planEditRequestSchema>
+export type PlanEditResult = z.infer<typeof planEditResultSchema>

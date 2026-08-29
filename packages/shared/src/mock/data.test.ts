@@ -4,6 +4,7 @@ import {
   createDefaultMockPersistedState,
   createMockSufraSnapshot,
   mockGeneratePlan,
+  mockSetMealServings,
   mockSetPantryItem,
   mockSignIn,
   mockSwapMeal,
@@ -60,6 +61,28 @@ describe('mock Sufra dataset', () => {
       afterSwap.groceryList?.items.find((item) => item.ingredientId === 'oats')
         ?.requiredQuantityGrams,
     ).not.toBe(oatsBefore?.requiredQuantityGrams)
+  })
+
+  it('recalculates nutrition and groceries after a serving change', () => {
+    let state = createDefaultMockPersistedState()
+    const before = createMockSufraSnapshot(state)
+    const meal = before.plan!.meals[0]!
+    const caloriesBefore = meal.nutrition.calories
+    const recipe = before.recipes.find((candidate) => candidate.id === meal.recipeId)!
+    const ingredientId = recipe.ingredients[0]!.id
+    const requiredBefore = before.groceryList!.items.find(
+      (item) => item.ingredientId === ingredientId,
+    )!.requiredQuantityGrams
+
+    state = mockSetMealServings(state, meal.id, meal.servings * 2)
+    const after = createMockSufraSnapshot(state)
+
+    expect(after.plan!.meals[0]!.servings).toBe(meal.servings * 2)
+    expect(after.plan!.meals[0]!.nutrition.calories).toBe(caloriesBefore * 2)
+    expect(
+      after.groceryList!.items.find((item) => item.ingredientId === ingredientId)!
+        .requiredQuantityGrams,
+    ).toBeGreaterThan(requiredBefore)
   })
 
   it('applies the selected Georgian store to localized pricing estimates', () => {

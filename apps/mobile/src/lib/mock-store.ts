@@ -5,6 +5,7 @@ import {
   createMockSufraSnapshot,
   mockGeneratePlan,
   mockSaveProfile,
+  mockSetMealServings,
   mockSetPantryItem,
   mockSignIn,
   mockSignUp,
@@ -62,6 +63,15 @@ function loadState(): MockPersistedState {
           ? Object.fromEntries(
               Object.entries(parsed.mealRecipeOverrides).filter(
                 (entry): entry is [string, string] => typeof entry[1] === 'string',
+              ),
+            )
+          : {},
+      mealServingOverrides:
+        parsed.mealServingOverrides && typeof parsed.mealServingOverrides === 'object'
+          ? Object.fromEntries(
+              Object.entries(parsed.mealServingOverrides).filter(
+                (entry): entry is [string, number] =>
+                  typeof entry[1] === 'number' && entry[1] >= 0.25 && entry[1] <= 100,
               ),
             )
           : {},
@@ -133,4 +143,8 @@ export function removePantryItemMock(pantryItemId: string): void {
 
 export function swapMealMock(mealId: string, recipeId: string): void {
   commit(mockSwapMeal(state, mealId, recipeId))
+}
+
+export function setMealServingsMock(mealId: string, servings: number): void {
+  commit(mockSetMealServings(state, mealId, servings))
 }

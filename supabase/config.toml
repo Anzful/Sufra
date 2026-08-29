@@ -388,6 +388,9 @@ deno_version = 2
 [functions.generate-weekly-plan]
 verify_jwt = true
 
+[functions.update-weekly-plan]
+verify_jwt = true
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

@@ -110,6 +110,7 @@ export interface MockPersistedState {
   checkedGroceryItemIds: string[]
   pantryItems: MockPantryEntry[]
   mealRecipeOverrides: Record<string, string>
+  mealServingOverrides: Record<string, number>
 }
 
 export interface MockSufraSnapshot {

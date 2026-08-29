@@ -517,6 +517,7 @@ export function createDefaultMockPersistedState(): MockPersistedState {
       { id: 'pantry-walnut', ingredientId: 'walnut', quantityGrams: 40, expiresOn: null },
     ],
     mealRecipeOverrides: {},
+    mealServingOverrides: {},
   }
 }
 
@@ -578,15 +579,23 @@ function buildPlan(state: MockPersistedState): MockWeeklyPlan {
         (candidate) => candidate.id === overrideId && allowedIds.includes(candidate.id),
       ) ?? safeDefaultRecipe
     const resolvedRecipeIndex = recipes.findIndex((candidate) => candidate.id === recipe.id)
+    const servings =
+      state.mealServingOverrides[mealOverrideKey(dayIndex, mealSlot)] ?? state.profile.householdSize
+    const nutritionScale = servings / state.profile.householdSize
     return {
       id: `mock-meal-${revision}-${index + 1}`,
       dayIndex,
       mealSlot,
       slotPosition: (index % 3) + 1,
-      servings: 2,
+      servings,
       recipeId: recipe.id,
-      nutrition: recipe.nutritionPerServing,
-      estimatedCostGel: Math.round((5.2 + resolvedRecipeIndex * 0.43) * 100) / 100,
+      nutrition: Object.fromEntries(
+        Object.entries(recipe.nutritionPerServing).map(([key, value]) => [
+          key,
+          Math.round(value * nutritionScale * 10) / 10,
+        ]),
+      ) as unknown as MacroTotals,
+      estimatedCostGel: Math.round((5.2 + resolvedRecipeIndex * 0.43) * nutritionScale * 100) / 100,
       alternativeRecipeIds: allowedIds.filter((recipeId) => recipeId !== recipe.id),
     }
   })
@@ -984,6 +993,7 @@ export function mockSignUp(state: MockPersistedState, email: string): MockPersis
     checkedGroceryItemIds: [],
     pantryItems: [],
     mealRecipeOverrides: {},
+    mealServingOverrides: {},
   }
 }
 
@@ -1001,6 +1011,7 @@ export function mockGeneratePlan(state: MockPersistedState): MockPersistedState 
     planRevision: state.planRevision + 1,
     checkedGroceryItemIds: [],
     mealRecipeOverrides: {},
+    mealServingOverrides: {},
   }
 }
 
@@ -1064,6 +1075,26 @@ export function mockSwapMeal(
     mealRecipeOverrides: {
       ...state.mealRecipeOverrides,
       [mealOverrideKey(meal.dayIndex, meal.mealSlot)]: recipeId,
+    },
+    checkedGroceryItemIds: [],
+  }
+}
+
+export function mockSetMealServings(
+  state: MockPersistedState,
+  mealId: string,
+  servings: number,
+): MockPersistedState {
+  const meal = buildPlan(state).meals.find((candidate) => candidate.id === mealId)
+  if (!meal) throw new Error('That mock meal was not found.')
+  if (!Number.isFinite(servings) || servings < 0.25 || servings > 100) {
+    throw new Error('Servings must be between 0.25 and 100.')
+  }
+  return {
+    ...state,
+    mealServingOverrides: {
+      ...state.mealServingOverrides,
+      [mealOverrideKey(meal.dayIndex, meal.mealSlot)]: Math.round(servings * 100) / 100,
     },
     checkedGroceryItemIds: [],
   }

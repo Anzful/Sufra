@@ -13,6 +13,7 @@ import { redirect } from 'next/navigation'
 import { AppHeader } from '@/components/app-header'
 import { GeneratePlanButton } from '@/components/generate-plan-button'
 import { GroceryCheckbox } from '@/components/grocery-checkbox'
+import { MealEditor } from '@/components/meal-editor'
 import { MockPlanPage } from '@/components/mock-plan-page'
 import { isMockMode } from '@/lib/data-mode'
 import { requireLocale } from '@/lib/locale'
@@ -38,6 +39,11 @@ interface Recipe {
   cook_minutes: number
   recipe_translations: Translation[]
   recipe_steps: RecipeStep[]
+}
+
+interface RecipeOption {
+  id: string
+  recipe_translations: Translation[]
 }
 
 interface PlannedMeal {
@@ -181,7 +187,7 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
     )
   }
 
-  const [mealsResult, groceryListResult, jobResult] = await Promise.all([
+  const [mealsResult, groceryListResult, jobResult, recipeOptionsResult] = await Promise.all([
     supabase
       .from('planned_meals')
       .select(
@@ -207,9 +213,15 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
       .eq('weekly_plan_id', plan.id)
       .eq('status', 'succeeded')
       .maybeSingle(),
+    supabase
+      .from('recipes')
+      .select('id, recipe_translations(locale, title)')
+      .eq('status', 'published')
+      .order('created_at'),
   ])
   if (mealsResult.error) throw new Error(mealsResult.error.message)
   if (groceryListResult.error) throw new Error(groceryListResult.error.message)
+  if (recipeOptionsResult.error) throw new Error(recipeOptionsResult.error.message)
 
   const groceryItemsResult = groceryListResult.data
     ? await supabase
@@ -227,10 +239,17 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
 
   const meals = (mealsResult.data ?? []) as unknown as PlannedMeal[]
   const groceries = (groceryItemsResult.data ?? []) as unknown as GroceryItem[]
+  const recipeOptions = (recipeOptionsResult.data ?? []) as unknown as RecipeOption[]
   const outputSnapshot = jobResult.data?.output_snapshot as { warnings?: unknown } | null
-  const warnings = Array.isArray(outputSnapshot?.warnings)
+  const generationWarnings = Array.isArray(outputSnapshot?.warnings)
     ? outputSnapshot.warnings.filter((warning): warning is string => typeof warning === 'string')
     : []
+  const editWarnings = Array.isArray(plan.validation_warnings)
+    ? plan.validation_warnings.filter(
+        (warning: unknown): warning is string => typeof warning === 'string',
+      )
+    : []
+  const warnings = [...new Set([...generationWarnings, ...editWarnings])]
   const summary = locale === 'ka' ? plan.summary_ka : plan.summary_en
 
   return (
@@ -321,6 +340,20 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
                               </li>
                             ))}
                           </ol>
+                          <MealEditor
+                            alternatives={recipeOptions
+                              .filter((recipe) => recipe.id !== meal.recipes.id)
+                              .map((recipe) => ({
+                                id: recipe.id,
+                                title:
+                                  localized(recipe.recipe_translations, locale)?.title ?? recipe.id,
+                              }))}
+                            expectedUpdatedAt={plan.updated_at}
+                            locale={locale}
+                            mealId={meal.id}
+                            planId={plan.id}
+                            servings={Number(meal.servings)}
+                          />
                         </div>
                       </details>
                     )

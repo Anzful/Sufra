@@ -4,6 +4,7 @@ import {
   createMockSufraSnapshot,
   mockGeneratePlan,
   mockSaveProfile,
+  mockSetMealServings,
   mockSwapMeal,
   profileInputSchema,
   type ProfileInput,
@@ -49,5 +50,18 @@ export async function swapMockMealAction(
   const state = await readMockState()
   if (!state.session) throw new Error('Mock session is not authenticated.')
   await writeMockState(mockSwapMeal(state, mealId, recipeId))
+  revalidatePath(`/${locale}/plan`)
+}
+
+export async function setMockMealServingsAction(
+  mealId: string,
+  locale: 'ka' | 'en',
+  formData: FormData,
+): Promise<void> {
+  if (locale !== 'ka' && locale !== 'en') throw new Error('Unsupported locale.')
+  const state = await readMockState()
+  if (!state.session) throw new Error('Mock session is not authenticated.')
+  const servings = Number(formData.get('servings'))
+  await writeMockState(mockSetMealServings(state, mealId, servings))
   revalidatePath(`/${locale}/plan`)
 }
