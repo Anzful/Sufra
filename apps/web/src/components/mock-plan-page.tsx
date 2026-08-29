@@ -14,6 +14,7 @@ import { setMockMealServingsAction, swapMockMealAction } from '@/app/mock-action
 import { AppHeader } from './app-header'
 import { GeneratePlanButton } from './generate-plan-button'
 import { GroceryCheckbox } from './grocery-checkbox'
+import { PriceCoverage, PriceFreshnessBadge } from './price-transparency'
 
 function dateForDay(weekStartDate: string, dayIndex: number): string {
   const date = new Date(`${weekStartDate}T12:00:00Z`)
@@ -259,6 +260,14 @@ export function MockPlanPage({
                 {formatGel(groceryList?.estimatedTotalGel ?? 0, locale)}
               </p>
             </div>
+            <PriceCoverage
+              items={(groceryList?.items ?? []).map((item) => ({
+                purchaseQuantity: item.purchaseQuantity,
+                estimatedCostGel: item.estimatedCostGel,
+                metadata: item.priceObservation,
+              }))}
+              locale={locale}
+            />
             <div className="surface mt-6 rounded-3xl px-5 py-2">
               {[...groupedGroceries.entries()].map(([aisle, items]) => (
                 <div className="border-b border-[var(--line)] py-3 last:border-0" key={aisle}>
@@ -280,6 +289,7 @@ export function MockPlanPage({
                             {item.pantryDeductionGrams}g
                           </p>
                         ) : null}
+                        <PriceFreshnessBadge locale={locale} metadata={item.priceObservation} />
                       </div>
                       <span className="text-sm font-bold">
                         {quantityLabel(item.purchaseQuantity, item.purchaseUnit, locale)}

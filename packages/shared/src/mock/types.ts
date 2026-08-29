@@ -70,6 +70,15 @@ export interface MockGroceryItem {
   requiredQuantityGrams: number
   pantryDeductionGrams: number
   estimatedCostGel: number
+  priceObservation: {
+    observedAt: string
+    validTo: string | null
+    source: 'manual' | 'retailer' | 'government' | 'partner'
+    sourceUrl: string | null
+    isPromotion: boolean
+    regularPriceGel: number | null
+    productName: LocalizedText
+  }
   checked: boolean
 }
 

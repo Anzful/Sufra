@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { summarizePriceCoverage } from '../logic/price-freshness.ts'
+
 import {
   createDefaultMockPersistedState,
   createMockSufraSnapshot,
@@ -97,5 +99,24 @@ describe('mock Sufra dataset', () => {
     expect(carrefour.groceryList?.estimatedTotalGel).toBeLessThan(
       nikora.groceryList?.estimatedTotalGel ?? 0,
     )
+  })
+
+  it('includes current, cautionary, stale, expired, and promotional mock prices', () => {
+    const list = createMockSufraSnapshot(createDefaultMockPersistedState()).groceryList!
+    const summary = summarizePriceCoverage(
+      list.items.map((item) => ({
+        purchaseQuantity: item.purchaseQuantity,
+        estimatedCostGel: item.estimatedCostGel,
+        observedAt: item.priceObservation.observedAt,
+        validTo: item.priceObservation.validTo,
+      })),
+    )
+
+    expect(summary.coveragePercent).toBe(100)
+    expect(summary.freshItemCount).toBeGreaterThan(0)
+    expect(summary.agingItemCount).toBeGreaterThan(0)
+    expect(summary.staleItemCount).toBeGreaterThan(0)
+    expect(summary.expiredItemCount).toBeGreaterThan(0)
+    expect(list.items.some((item) => item.priceObservation.isPromotion)).toBe(true)
   })
 })

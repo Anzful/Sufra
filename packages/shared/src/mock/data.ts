@@ -882,6 +882,7 @@ function buildGroceryItems(
   pantryItems: MockPantryEntry[],
   checkedIds: string[],
   storePriceMultiplier: number,
+  storeSlug: string,
 ): MockGroceryItem[] {
   const requiredByIngredient = new Map<string, number>()
   for (const meal of plan.meals) {
@@ -908,12 +909,28 @@ function buildGroceryItems(
   }
   const checked = new Set(checkedIds)
 
-  return ingredientDefinitions.flatMap((definition) => {
+  const freshnessDays = [2, 5, 12, 24, 45]
+  const now = new Date()
+
+  return ingredientDefinitions.flatMap((definition, definitionIndex) => {
     const required = Math.round((requiredByIngredient.get(definition.id) ?? 0) * 10) / 10
     if (required <= 0) return []
     const pantryDeduction = Math.min(required, pantryByIngredient.get(definition.id) ?? 0)
     const needed = Math.max(0, required - pantryDeduction)
     const packageCount = needed === 0 ? 0 : Math.ceil(needed / definition.packageSizeGrams)
+    const observedAt = new Date(
+      now.getTime() - freshnessDays[definitionIndex % freshnessDays.length]! * 86_400_000,
+    )
+    const isPromotion = definitionIndex % 7 === 0
+    const isExpiredPromotion = definitionIndex % 13 === 12
+    const validTo = isPromotion || isExpiredPromotion ? new Date(now) : null
+    if (validTo) validTo.setUTCDate(validTo.getUTCDate() + (isExpiredPromotion ? -1 : 5))
+    const source =
+      definitionIndex % 6 === 5
+        ? ('manual' as const)
+        : definitionIndex % 2 === 0
+          ? ('government' as const)
+          : ('retailer' as const)
     return [
       {
         id: `grocery-${definition.id}`,
@@ -926,6 +943,18 @@ function buildGroceryItems(
         pantryDeductionGrams: Math.round(pantryDeduction * 10) / 10,
         estimatedCostGel:
           Math.round(packageCount * definition.packagePriceGel * storePriceMultiplier * 100) / 100,
+        priceObservation: {
+          observedAt: observedAt.toISOString(),
+          validTo: validTo?.toISOString() ?? null,
+          source,
+          sourceUrl:
+            source === 'government' ? `https://ekalata.gov.ge/en/stores/${storeSlug}` : null,
+          isPromotion,
+          regularPriceGel: isPromotion
+            ? Math.round(definition.packagePriceGel * storePriceMultiplier * 1.15 * 100) / 100
+            : null,
+          productName: definition.name,
+        },
         checked: checked.has(`grocery-${definition.id}`),
       },
     ]
@@ -941,6 +970,7 @@ export function createMockSufraSnapshot(state: MockPersistedState): MockSufraSna
         state.pantryItems,
         state.checkedGroceryItemIds,
         storePriceMultipliers[store?.slug ?? 'nikora'] ?? 1,
+        store?.slug ?? 'nikora',
       )
     : []
   const estimatedTotalGel =

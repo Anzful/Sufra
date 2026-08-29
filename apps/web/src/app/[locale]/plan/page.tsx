@@ -15,6 +15,11 @@ import { GeneratePlanButton } from '@/components/generate-plan-button'
 import { GroceryCheckbox } from '@/components/grocery-checkbox'
 import { MealEditor } from '@/components/meal-editor'
 import { MockPlanPage } from '@/components/mock-plan-page'
+import {
+  PriceCoverage,
+  PriceFreshnessBadge,
+  type PriceMetadata,
+} from '@/components/price-transparency'
 import { isMockMode } from '@/lib/data-mode'
 import { requireLocale } from '@/lib/locale'
 import { readMockSnapshot } from '@/lib/mock-server'
@@ -70,6 +75,30 @@ interface GroceryItem {
   sort_order: number
   ingredients: { ingredient_translations: Translation[] }
   aisles: { aisle_translations: Translation[] } | null
+  store_pricing: {
+    observed_at: string
+    valid_to: string | null
+    source: 'manual' | 'retailer' | 'government' | 'partner'
+    source_url: string | null
+    is_promotion: boolean
+    regular_price_gel: number | null
+  } | null
+}
+
+function priceMetadata(item: GroceryItem): PriceMetadata | null {
+  return item.store_pricing
+    ? {
+        observedAt: item.store_pricing.observed_at,
+        validTo: item.store_pricing.valid_to,
+        source: item.store_pricing.source,
+        sourceUrl: item.store_pricing.source_url,
+        isPromotion: item.store_pricing.is_promotion,
+        regularPriceGel:
+          item.store_pricing.regular_price_gel === null
+            ? null
+            : Number(item.store_pricing.regular_price_gel),
+      }
+    : null
 }
 
 function localized<T extends Translation>(rows: T[], locale: Locale): T | undefined {
@@ -230,7 +259,10 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
           `id, required_quantity, pantry_deduction_quantity, purchase_quantity,
            purchase_unit, estimated_cost_gel, is_checked, sort_order,
            ingredients!inner(ingredient_translations(locale, name)),
-           aisles(aisle_translations(locale, name))`,
+           aisles(aisle_translations(locale, name)),
+           store_pricing!grocery_list_items_selected_store_pricing_id_fkey(
+             observed_at, valid_to, source, source_url, is_promotion, regular_price_gel
+           )`,
         )
         .eq('grocery_list_id', groceryListResult.data.id)
         .order('sort_order')
@@ -370,6 +402,15 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
               03 · {translate(locale, 'groceryList')}
             </p>
             <h2 className="display-face mt-2 text-4xl">{translate(locale, 'groceryList')}</h2>
+            <PriceCoverage
+              items={groceries.map((item) => ({
+                purchaseQuantity: Number(item.purchase_quantity),
+                estimatedCostGel:
+                  item.estimated_cost_gel === null ? null : Number(item.estimated_cost_gel),
+                metadata: priceMetadata(item),
+              }))}
+              locale={locale}
+            />
             <div className="surface mt-6 divide-y divide-[var(--line)] rounded-3xl px-5">
               {groceries.map((item) => {
                 const name =
@@ -392,6 +433,7 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
                           ? ` · ${locale === 'ka' ? 'მარაგიდან' : 'from pantry'} ${Math.round(Number(item.pantry_deduction_quantity))}g`
                           : ''}
                       </p>
+                      <PriceFreshnessBadge locale={locale} metadata={priceMetadata(item)} />
                     </div>
                     <span className="text-sm font-bold">
                       {quantityLabel(Number(item.purchase_quantity), item.purchase_unit, locale)}

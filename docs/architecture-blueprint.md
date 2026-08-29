@@ -1,6 +1,6 @@
 # Sufra / სუფრა — execution blueprint
 
-Status: Functional MVP implemented across shared domain code, database/RLS, authenticated AI orchestration, Next.js web, and Expo mobile. Production data ingestion, RLS integration tests, evaluation, and release automation remain.
+Status: Functional MVP implemented across shared domain code, database/RLS, authenticated AI orchestration, Next.js web, and Expo mobile. Price provenance and freshness UI are implemented; production data ingestion, RLS integration tests, evaluation, and release automation remain.
 
 ## Product position
 
@@ -133,8 +133,8 @@ These choices track current Supabase guidance on per-operation policies, explici
 2. Completed: database schema, explicit grants/RLS, Georgia-first reference data, starter recipes, transactional profile save, and generated-plan persistence.
 3. Completed: authenticated structured-output generation endpoint, OpenAI/Anthropic adapters, deterministic grocery/nutrition/budget validation, repair pass, audit records, rate limiting, and idempotency.
 4. Completed MVP: bilingual web and mobile authentication, onboarding, plan, detailed recipe, grocery checklist, language, and settings flows.
-5. Next: licensed nutrition import, permitted store-price ingestion, freshness indicators, admin review tools, and monitoring.
-6. Next: pgTAP RLS tests, hosted integration/E2E tests, Georgian/English prompt evaluation corpus, accessibility audit, privacy copy, meal swapping, pantry editor, and release automation.
+5. Completed MVP hardening: pantry editing, meal swapping, serving changes, deterministic recalculation, and store-price freshness/coverage indicators.
+6. Next: licensed nutrition import, permitted store-price ingestion, admin review tools, monitoring, pgTAP RLS tests, hosted integration/E2E tests, Georgian/English prompt evaluation corpus, accessibility audit, privacy copy, and release automation.
 
 ## Acceptance gates
 

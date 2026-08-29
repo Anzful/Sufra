@@ -15,6 +15,7 @@ The repository is a pnpm/Turborepo monorepo with a Next.js web app, Expo mobile 
 - A bounded repair pass followed by deterministic server-side constraint validation. AI output is never trusted for nutrition, pricing, or grocery arithmetic.
 - A small bilingual starter catalogue for development. Its nutrition records are deliberately flagged unverified.
 - Authenticated meal swaps and serving changes on web and mobile. Every live edit re-applies recipe safety rules and deterministically rebuilds nutrition, pantry deductions, store estimates, and groceries in one transaction.
+- Per-item supermarket price provenance, freshness, promotion status, and list-level price coverage on web and mobile. Stale or expired observations are never presented as current prices.
 - A zero-configuration interactive mock mode for web and mobile. It covers mock authentication, onboarding persistence, a full 21-meal week, detailed recipes, plan regeneration, meal swaps, serving changes, an editable pantry, selected-store price adjustments, deterministic grocery recalculation, an aisle-grouped checklist, settings, and Georgian/English switching.
 
 The broader product and research rationale is in [docs/architecture-blueprint.md](docs/architecture-blueprint.md).
@@ -24,7 +25,7 @@ The broader product and research rationale is in [docs/architecture-blueprint.md
 ```text
 apps/
   web/                   Next.js 16 App Router
-  mobile/                Expo SDK 57 + Expo Router
+  mobile/                Expo SDK 54 + Expo Router
 packages/
   shared/                schemas, contracts, business logic, i18n
 supabase/
