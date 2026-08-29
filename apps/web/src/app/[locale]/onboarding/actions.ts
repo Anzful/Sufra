@@ -5,6 +5,8 @@ import { profileInputSchema } from '@sufra/shared/schemas'
 import { redirect } from 'next/navigation'
 
 import { isLocale } from '@/lib/locale'
+import { isMockMode } from '@/lib/data-mode'
+import { saveMockProfileAction } from '@/app/mock-actions'
 import { createClient } from '@/lib/supabase/server'
 
 function numberValue(formData: FormData, name: string): number {
@@ -47,6 +49,16 @@ export async function saveOnboardingAction(formData: FormData) {
   })
 
   if (!result.success) redirect(`/${locale}/onboarding?error=validation`)
+
+  if (isMockMode()) {
+    try {
+      await saveMockProfileAction(result.data)
+    } catch (error) {
+      console.error('mock profile save failed', error)
+      redirect(`/${locale}/onboarding?error=save`)
+    }
+    redirect(`/${locale}/plan`)
+  }
 
   const supabase = await createClient()
   const claims = await supabase.auth.getClaims()

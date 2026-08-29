@@ -5,18 +5,29 @@ import { redirect } from 'next/navigation'
 import { Brand } from '@/components/brand'
 import { LocaleSwitcher } from '@/components/locale-switcher'
 import { requireLocale } from '@/lib/locale'
+import { isMockMode } from '@/lib/data-mode'
+import { readMockState } from '@/lib/mock-server'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const locale = requireLocale((await params).locale)
-  const supabase = await createClient()
-  const claimsResult = await supabase.auth.getClaims()
-
-  if (claimsResult.data?.claims?.sub) {
-    const profileResult = await supabase.from('profiles').select('onboarding_completed_at').single()
-    redirect(
-      profileResult.data?.onboarding_completed_at ? `/${locale}/plan` : `/${locale}/onboarding`,
-    )
+  if (isMockMode()) {
+    const state = await readMockState()
+    if (state.session) {
+      redirect(state.onboardingComplete ? `/${locale}/plan` : `/${locale}/onboarding`)
+    }
+  } else {
+    const supabase = await createClient()
+    const claimsResult = await supabase.auth.getClaims()
+    if (claimsResult.data?.claims?.sub) {
+      const profileResult = await supabase
+        .from('profiles')
+        .select('onboarding_completed_at')
+        .single()
+      redirect(
+        profileResult.data?.onboarding_completed_at ? `/${locale}/plan` : `/${locale}/onboarding`,
+      )
+    }
   }
 
   const copy =

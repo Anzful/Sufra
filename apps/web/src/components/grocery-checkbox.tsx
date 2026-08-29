@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 
+import { setMockGroceryCheckedAction } from '@/app/mock-actions'
+import { isMockMode } from '@/lib/data-mode'
 import { createClient } from '@/lib/supabase/client'
 
 export function GroceryCheckbox({ id, initialChecked }: { id: string; initialChecked: boolean }) {
@@ -11,11 +13,19 @@ export function GroceryCheckbox({ id, initialChecked }: { id: string; initialChe
   async function update(nextChecked: boolean) {
     setChecked(nextChecked)
     setSaving(true)
-    const result = await createClient()
-      .from('grocery_list_items')
-      .update({ is_checked: nextChecked })
-      .eq('id', id)
-    if (result.error) setChecked(!nextChecked)
+    try {
+      if (isMockMode()) {
+        await setMockGroceryCheckedAction(id, nextChecked)
+      } else {
+        const result = await createClient()
+          .from('grocery_list_items')
+          .update({ is_checked: nextChecked })
+          .eq('id', id)
+        if (result.error) throw result.error
+      }
+    } catch {
+      setChecked(!nextChecked)
+    }
     setSaving(false)
   }
 

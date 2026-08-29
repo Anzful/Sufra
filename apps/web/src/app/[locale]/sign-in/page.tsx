@@ -6,13 +6,19 @@ import { AuthForm } from '@/components/auth-form'
 import { Brand } from '@/components/brand'
 import { LocaleSwitcher } from '@/components/locale-switcher'
 import { requireLocale } from '@/lib/locale'
+import { isMockMode } from '@/lib/data-mode'
+import { readMockState } from '@/lib/mock-server'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function SignInPage({ params }: { params: Promise<{ locale: string }> }) {
   const locale = requireLocale((await params).locale)
-  const supabase = await createClient()
-  const claims = await supabase.auth.getClaims()
-  if (claims.data?.claims?.sub) redirect(`/${locale}`)
+  if (isMockMode()) {
+    if ((await readMockState()).session) redirect(`/${locale}/plan`)
+  } else {
+    const supabase = await createClient()
+    const claims = await supabase.auth.getClaims()
+    if (claims.data?.claims?.sub) redirect(`/${locale}`)
+  }
 
   return (
     <main className="min-h-screen px-5 py-6">

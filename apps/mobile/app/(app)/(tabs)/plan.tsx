@@ -23,6 +23,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Card, PrimaryButton, Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
+import { isMockMode } from '@/lib/data-mode'
+import { generatePlanMock, getMockSnapshot } from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
 import { useLocale } from '@/providers/locale-provider'
 
@@ -72,6 +74,50 @@ export default function PlanScreen() {
   const [message, setMessage] = useState('')
 
   async function load() {
+    if (isMockMode()) {
+      const snapshot = getMockSnapshot()
+      if (!snapshot.plan) {
+        setPlan(null)
+        setMeals([])
+        setLoading(false)
+        return
+      }
+      const mockPlan = snapshot.plan
+      const recipes = new Map(snapshot.recipes.map((recipe) => [recipe.id, recipe]))
+      setPlan({
+        id: mockPlan.id,
+        week_start_date: mockPlan.weekStartDate,
+        summary_ka: mockPlan.summary.ka,
+        summary_en: mockPlan.summary.en,
+        estimated_cost_gel: mockPlan.estimatedCostGel,
+        average_daily_calories: mockPlan.averageDailyNutrition.calories,
+      })
+      setMeals(
+        mockPlan.meals.map((meal) => {
+          const recipe = recipes.get(meal.recipeId)
+          return {
+            id: meal.id,
+            day_index: meal.dayIndex,
+            meal_slot: meal.mealSlot,
+            calories: meal.nutrition.calories,
+            protein_g: meal.nutrition.proteinG,
+            carbohydrate_g: meal.nutrition.carbohydrateG,
+            fat_g: meal.nutrition.fatG,
+            recipes: {
+              id: meal.recipeId,
+              recipe_translations: recipe
+                ? [
+                    { locale: 'ka' as const, title: recipe.title.ka },
+                    { locale: 'en' as const, title: recipe.title.en },
+                  ]
+                : [],
+            },
+          }
+        }),
+      )
+      setLoading(false)
+      return
+    }
     const planResult = await supabase
       .from('weekly_plans')
       .select(
@@ -107,11 +153,13 @@ export default function PlanScreen() {
     setGenerating(true)
     setMessage('')
     try {
-      await createSufraApi(supabase as unknown as SufraTransport).generateWeeklyPlan({
-        weekStartDate: getWeekStartDate(),
-        locale,
-        idempotencyKey: crypto.randomUUID(),
-      })
+      if (isMockMode()) generatePlanMock()
+      else
+        await createSufraApi(supabase as unknown as SufraTransport).generateWeeklyPlan({
+          weekStartDate: getWeekStartDate(),
+          locale,
+          idempotencyKey: crypto.randomUUID(),
+        })
       await load()
     } catch {
       setMessage(locale === 'ka' ? 'გეგმის შექმნა ვერ მოხერხდა.' : 'Could not generate the plan.')

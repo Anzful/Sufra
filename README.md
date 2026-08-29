@@ -14,6 +14,7 @@ The repository is a pnpm/Turborepo monorepo with a Next.js web app, Expo mobile 
 - An authenticated, idempotent, rate-limited meal-plan Edge Function with OpenAI Responses API and Anthropic structured-output adapters.
 - A bounded repair pass followed by deterministic server-side constraint validation. AI output is never trusted for nutrition, pricing, or grocery arithmetic.
 - A small bilingual starter catalogue for development. Its nutrition records are deliberately flagged unverified.
+- A zero-configuration interactive mock mode for web and mobile. It covers mock authentication, onboarding persistence, a full 21-meal week, detailed recipes, plan regeneration, an aisle-grouped grocery checklist, pantry deductions, settings, and Georgian/English switching.
 
 The broader product and research rationale is in [docs/architecture-blueprint.md](docs/architecture-blueprint.md).
 
@@ -41,6 +42,23 @@ tooling/typescript/       shared compiler configurations
 
 ## Local setup
 
+### Interactive mock demo (default)
+
+No Supabase project or AI key is required. Mock mode is the default when `NEXT_PUBLIC_DATA_MODE` / `EXPO_PUBLIC_DATA_MODE` are absent or set to `mock`.
+
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+pnpm dev:web
+pnpm dev:mobile
+```
+
+Open the web app, choose **Start planning**, and use the prefilled demo credentials. Any password with at least eight characters works. Signing in opens a populated account; creating an account exercises onboarding and first-plan generation. Web demo state is stored in an HTTP-only cookie and mobile demo state is stored locally on the device.
+
+The fixtures live in `packages/shared/src/mock`, so web and mobile exercise the same stores, preferences, recipes, plan, nutrition, and grocery data.
+
+### Live Supabase and AI mode
+
 1. Install dependencies:
 
    ```bash
@@ -65,6 +83,8 @@ tooling/typescript/       shared compiler configurations
    ```
 
 4. Put the project URL and publishable key in both client env files. Put one AI provider key and model in `supabase/functions/.env`. Never put a Supabase secret/service key or AI provider key in either client app.
+
+   Set `NEXT_PUBLIC_DATA_MODE=supabase` and `EXPO_PUBLIC_DATA_MODE=supabase` in the respective client environment files.
 
 5. Serve the function and clients:
 

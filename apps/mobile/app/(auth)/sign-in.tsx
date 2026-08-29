@@ -4,17 +4,19 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } fr
 
 import { Card, Field, Label, PrimaryButton, Screen, Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
-import { supabase } from '@/lib/supabase'
+import { isMockMode } from '@/lib/data-mode'
+import { useAuth } from '@/providers/auth-provider'
 import { useLocale } from '@/providers/locale-provider'
 
 export default function SignInScreen() {
   const { locale, setLocale } = useLocale()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const { signIn, signUp: register } = useAuth()
+  const [email, setEmail] = useState(isMockMode() ? 'demo@sufra.ge' : '')
+  const [password, setPassword] = useState(isMockMode() ? 'sufra-demo' : '')
   const [pending, setPending] = useState(false)
   const [message, setMessage] = useState('')
 
-  async function submit(signUp: boolean) {
+  async function submit(creatingAccount: boolean) {
     if (!email.trim() || password.length < 8) {
       setMessage(
         locale === 'ka'
@@ -25,17 +27,13 @@ export default function SignInScreen() {
     }
     setPending(true)
     setMessage('')
-    const result = signUp
-      ? await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: { data: { locale }, emailRedirectTo: 'sufra://auth/callback' },
-        })
-      : await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    const error = creatingAccount
+      ? await register(email.trim(), password, locale)
+      : await signIn(email.trim(), password)
     setPending(false)
-    if (result.error) {
+    if (error) {
       setMessage(locale === 'ka' ? 'ავტორიზაცია ვერ მოხერხდა.' : 'Authentication failed.')
-    } else if (signUp && !result.data.session) {
+    } else if (creatingAccount && !isMockMode()) {
       setMessage(
         locale === 'ka'
           ? 'შეამოწმე ელფოსტა ანგარიშის დასადასტურებლად.'
@@ -64,6 +62,13 @@ export default function SignInScreen() {
               : 'There is always room at the table.'}
           </Title>
           <Card style={styles.card}>
+            {isMockMode() ? (
+              <Text style={styles.demoNote}>
+                {locale === 'ka'
+                  ? 'დემო რეჟიმი — ნებისმიერი 8+ სიმბოლოიანი პაროლი იმუშავებს.'
+                  : 'Demo mode — any password with 8+ characters works.'}
+              </Text>
+            ) : null}
             <Label>{translate(locale, 'email')}</Label>
             <Field
               autoCapitalize="none"
@@ -128,6 +133,15 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   card: { marginTop: 28 },
+  demoNote: {
+    backgroundColor: colors.paperDeep,
+    borderRadius: 12,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 18,
+    padding: 12,
+  },
   gap: { height: 15 },
   gapLarge: { height: 22 },
   message: { color: colors.danger, fontSize: 13, lineHeight: 19, marginTop: 14 },

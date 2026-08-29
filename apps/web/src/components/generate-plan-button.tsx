@@ -4,6 +4,8 @@ import { createSufraApi, getWeekStartDate, type Locale, type SufraTransport } fr
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
+import { generateMockPlanAction } from '@/app/mock-actions'
+import { isMockMode } from '@/lib/data-mode'
 import { createClient } from '@/lib/supabase/client'
 
 export function GeneratePlanButton({ locale }: { locale: Locale }) {
@@ -14,13 +16,17 @@ export function GeneratePlanButton({ locale }: { locale: Locale }) {
   async function generate() {
     setPending(true)
     setMessage('')
-    const api = createSufraApi(createClient() as unknown as SufraTransport)
     try {
-      await api.generateWeeklyPlan({
-        weekStartDate: getWeekStartDate(),
-        locale,
-        idempotencyKey: crypto.randomUUID(),
-      })
+      if (isMockMode()) {
+        await generateMockPlanAction(locale)
+      } else {
+        const api = createSufraApi(createClient() as unknown as SufraTransport)
+        await api.generateWeeklyPlan({
+          weekStartDate: getWeekStartDate(),
+          locale,
+          idempotencyKey: crypto.randomUUID(),
+        })
+      }
     } catch {
       setMessage(
         locale === 'ka'

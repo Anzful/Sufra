@@ -1,23 +1,40 @@
 import type { Session } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
+import { isMockMode } from '@/lib/data-mode'
+import {
+  getMockState,
+  signInMock,
+  signOutMock,
+  signUpMock,
+  subscribeMockState,
+} from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
 
+type AppSession = Session | NonNullable<ReturnType<typeof getMockState>['session']>
+
 interface AuthState {
-  session: Session | null
+  session: AppSession | null
   loading: boolean
   onboardingComplete: boolean | null
   refreshProfile: () => Promise<void>
+  signIn: (email: string, password: string) => Promise<string | null>
+  signUp: (email: string, password: string, locale: 'ka' | 'en') => Promise<string | null>
+  signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
+  const [session, setSession] = useState<AppSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null)
 
-  async function loadProfile(activeSession: Session | null) {
+  async function loadProfile(activeSession: AppSession | null) {
+    if (isMockMode()) {
+      setOnboardingComplete(activeSession ? getMockState().onboardingComplete : null)
+      return
+    }
     if (!activeSession) {
       setOnboardingComplete(null)
       return
@@ -31,10 +48,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function refreshProfile() {
-    await loadProfile(session)
+    if (isMockMode()) {
+      const next = getMockState()
+      setSession(next.session)
+      setOnboardingComplete(next.session ? next.onboardingComplete : null)
+    } else {
+      await loadProfile(session)
+    }
   }
 
   useEffect(() => {
+    if (isMockMode()) {
+      const sync = () => {
+        const next = getMockState()
+        setSession(next.session)
+        setOnboardingComplete(next.session ? next.onboardingComplete : null)
+        setLoading(false)
+      }
+      sync()
+      return subscribeMockState(sync)
+    }
     void supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session)
       await loadProfile(data.session)
@@ -48,8 +81,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => data.subscription.unsubscribe()
   }, [])
 
+  async function signIn(email: string, password: string): Promise<string | null> {
+    if (isMockMode()) {
+      signInMock(email)
+      return null
+    }
+    const result = await supabase.auth.signInWithPassword({ email, password })
+    return result.error?.message ?? null
+  }
+
+  async function signUp(
+    email: string,
+    password: string,
+    locale: 'ka' | 'en',
+  ): Promise<string | null> {
+    if (isMockMode()) {
+      signUpMock(email)
+      return null
+    }
+    const result = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { locale }, emailRedirectTo: 'sufra://auth/callback' },
+    })
+    return result.error?.message ?? null
+  }
+
+  async function signOut(): Promise<void> {
+    if (isMockMode()) signOutMock()
+    else await supabase.auth.signOut()
+  }
+
   const value = useMemo(
-    () => ({ session, loading, onboardingComplete, refreshProfile }),
+    () => ({ session, loading, onboardingComplete, refreshProfile, signIn, signUp, signOut }),
     [session, loading, onboardingComplete],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

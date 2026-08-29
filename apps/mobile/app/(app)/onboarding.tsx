@@ -14,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Card, Field, Label, PrimaryButton, Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
+import { isMockMode } from '@/lib/data-mode'
+import { getMockSnapshot, saveProfileMock } from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/providers/auth-provider'
 import { useLocale } from '@/providers/locale-provider'
@@ -77,6 +79,35 @@ export default function OnboardingScreen() {
   useEffect(() => {
     if (!session) return
     void (async () => {
+      if (isMockMode()) {
+        const snapshot = getMockSnapshot()
+        const row = snapshot.profile
+        setStores(snapshot.stores)
+        setAppliances(snapshot.appliances)
+        setAllergens(snapshot.allergens)
+        setDiets(snapshot.dietaryPatterns)
+        setApplianceIds(row.applianceIds)
+        setAllergenIds(row.allergenIds)
+        setDietIds(row.dietaryPatternIds)
+        setDisplayName(row.displayName ?? '')
+        setCity(row.city)
+        setPreferredStoreId(row.preferredStoreId)
+        setHouseholdSize(String(row.householdSize))
+        setBudgetPeriod(row.budgetPeriod)
+        setBudget(String(row.budgetAmountGel))
+        setCalories(String(row.dailyCalorieTarget))
+        setProtein(String(row.proteinTargetG ?? ''))
+        setCarbs(String(row.carbohydrateTargetG ?? ''))
+        setFat(String(row.fatTargetG ?? ''))
+        setFiber(String(row.fiberTargetG ?? ''))
+        setMealsPerDay(String(row.mealsPerDay))
+        setMaxCookMinutes(String(row.maxCookMinutes ?? ''))
+        setIncludeLeftovers(row.includeLeftovers)
+        setAllowBatchCooking(row.allowBatchCooking)
+        setLocale(row.locale)
+        setLoading(false)
+        return
+      }
       const userId = session.user.id
       const [
         profile,
@@ -180,7 +211,8 @@ export default function OnboardingScreen() {
     setSaving(true)
     setMessage('')
     try {
-      await createSufraApi(supabase as unknown as SufraTransport).saveProfile(parsed.data)
+      if (isMockMode()) saveProfileMock(parsed.data)
+      else await createSufraApi(supabase as unknown as SufraTransport).saveProfile(parsed.data)
     } catch {
       setMessage(locale === 'ka' ? 'პროფილი ვერ შეინახა.' : 'Could not save the profile.')
       setSaving(false)

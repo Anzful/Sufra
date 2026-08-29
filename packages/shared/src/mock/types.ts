@@ -1,0 +1,106 @@
+import type { ProfileInput } from '../schemas/profile.ts'
+import type { Locale, MealSlot, MeasurementUnit } from '../schemas/common.ts'
+import type { LocalizedText, MacroTotals } from '../domain/types.ts'
+
+export interface MockChoice {
+  id: number
+  slug: string
+  translations: Array<{ locale: Locale; name: string }>
+}
+
+export interface MockRecipeIngredient {
+  id: string
+  name: LocalizedText
+  quantity: number
+  unit: MeasurementUnit
+  optional?: boolean
+  preparationNote?: LocalizedText
+}
+
+export interface MockRecipeStep {
+  stepNumber: number
+  instruction: LocalizedText
+  durationMinutes?: number
+  temperatureCelsius?: number
+}
+
+export interface MockRecipe {
+  id: string
+  title: LocalizedText
+  description: LocalizedText
+  tips: LocalizedText
+  baseServings: number
+  prepMinutes: number
+  cookMinutes: number
+  nutritionPerServing: MacroTotals
+  applianceSlugs: string[]
+  ingredients: MockRecipeIngredient[]
+  steps: MockRecipeStep[]
+}
+
+export interface MockPlannedMeal {
+  id: string
+  dayIndex: number
+  mealSlot: MealSlot
+  slotPosition: number
+  servings: number
+  recipeId: string
+  nutrition: MacroTotals
+  estimatedCostGel: number
+}
+
+export interface MockWeeklyPlan {
+  id: string
+  weekStartDate: string
+  summary: LocalizedText
+  estimatedCostGel: number
+  averageDailyNutrition: MacroTotals
+  meals: MockPlannedMeal[]
+  warnings: string[]
+}
+
+export interface MockGroceryItem {
+  id: string
+  name: LocalizedText
+  aisle: LocalizedText
+  purchaseQuantity: number
+  purchaseUnit: MeasurementUnit
+  requiredQuantityGrams: number
+  pantryDeductionGrams: number
+  estimatedCostGel: number
+  checked: boolean
+}
+
+export interface MockGroceryList {
+  id: string
+  estimatedTotalGel: number
+  store: LocalizedText
+  items: MockGroceryItem[]
+}
+
+export interface MockSession {
+  user: { id: string; email: string }
+}
+
+/** The small user-editable overlay persisted by web cookies or device storage. */
+export interface MockPersistedState {
+  session: MockSession | null
+  onboardingComplete: boolean
+  profile: ProfileInput
+  planReady: boolean
+  planRevision: number
+  checkedGroceryItemIds: string[]
+}
+
+export interface MockSufraSnapshot {
+  session: MockSession | null
+  onboardingComplete: boolean
+  profile: ProfileInput
+  stores: MockChoice[]
+  appliances: MockChoice[]
+  allergens: MockChoice[]
+  dietaryPatterns: MockChoice[]
+  recipes: MockRecipe[]
+  plan: MockWeeklyPlan | null
+  groceryList: MockGroceryList | null
+}

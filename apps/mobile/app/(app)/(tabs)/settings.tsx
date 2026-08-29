@@ -4,13 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Card, Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/providers/auth-provider'
 import { useLocale } from '@/providers/locale-provider'
 
 export default function SettingsScreen() {
   const { locale, setLocale } = useLocale()
-  const { session } = useAuth()
+  const { session, signOut } = useAuth()
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -28,7 +27,7 @@ export default function SettingsScreen() {
             <Text style={styles.rowTitle}>{locale === 'ka' ? 'ენა' : 'Language'}</Text>
             <Text style={styles.value}>{locale === 'ka' ? 'ქართული' : 'English'} ›</Text>
           </Pressable>
-          <Pressable onPress={() => supabase.auth.signOut()} style={[styles.row, styles.last]}>
+          <Pressable onPress={() => void signOut()} style={[styles.row, styles.last]}>
             <Text style={[styles.rowTitle, { color: colors.wine }]}>
               {locale === 'ka' ? 'გასვლა' : 'Sign out'}
             </Text>

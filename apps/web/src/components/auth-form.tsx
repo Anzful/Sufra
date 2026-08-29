@@ -4,17 +4,33 @@ import { translate, type Locale } from '@sufra/shared'
 import { useActionState } from 'react'
 
 import { authAction, type AuthActionState } from '@/app/auth-actions'
+import { isMockMode } from '@/lib/data-mode'
 
 const initialState: AuthActionState = { status: 'idle', message: '' }
 
 export function AuthForm({ locale }: { locale: Locale }) {
   const [state, action, pending] = useActionState(authAction, initialState)
+  const mockMode = isMockMode()
   return (
     <form action={action} className="space-y-4">
+      {mockMode ? (
+        <p className="rounded-xl bg-[var(--paper-deep)] px-3 py-2 text-xs leading-5 text-[var(--muted)]">
+          {locale === 'ka'
+            ? 'დემო რეჟიმი — მონაცემები შენს მოწყობილობაზე რჩება. ნებისმიერი 8+ სიმბოლოიანი პაროლი იმუშავებს.'
+            : 'Demo mode — data stays on your device. Any password with 8+ characters works.'}
+        </p>
+      ) : null}
       <input name="locale" type="hidden" value={locale} />
       <label className="block text-sm font-semibold">
         {translate(locale, 'email')}
-        <input className="field mt-1.5" name="email" type="email" autoComplete="email" required />
+        <input
+          className="field mt-1.5"
+          name="email"
+          type="email"
+          autoComplete="email"
+          defaultValue={mockMode ? 'demo@sufra.ge' : ''}
+          required
+        />
       </label>
       <label className="block text-sm font-semibold">
         {translate(locale, 'password')}
@@ -24,6 +40,7 @@ export function AuthForm({ locale }: { locale: Locale }) {
           type="password"
           minLength={8}
           autoComplete="current-password"
+          defaultValue={mockMode ? 'sufra-demo' : ''}
           required
         />
       </label>

@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
+import { isMockMode } from '@/lib/data-mode'
+import { getMockSnapshot } from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
 import { useLocale } from '@/providers/locale-provider'
 
@@ -58,6 +60,69 @@ export default function RecipeScreen() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (isMockMode()) {
+      const value = getMockSnapshot().recipes.find((item) => item.id === id)
+      if (!value) {
+        setRecipe(null)
+        setLoading(false)
+        return
+      }
+      setRecipe({
+        id: value.id,
+        base_servings: value.baseServings,
+        prep_minutes: value.prepMinutes,
+        cook_minutes: value.cookMinutes,
+        calories_per_serving: value.nutritionPerServing.calories,
+        protein_g_per_serving: value.nutritionPerServing.proteinG,
+        carbohydrate_g_per_serving: value.nutritionPerServing.carbohydrateG,
+        fat_g_per_serving: value.nutritionPerServing.fatG,
+        recipe_translations: [
+          {
+            locale: 'ka',
+            title: value.title.ka,
+            description: value.description.ka,
+            tips: value.tips.ka,
+          },
+          {
+            locale: 'en',
+            title: value.title.en,
+            description: value.description.en,
+            tips: value.tips.en,
+          },
+        ],
+        recipe_ingredients: value.ingredients.map((ingredient, index) => ({
+          id: index + 1,
+          position: index + 1,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          is_optional: ingredient.optional ?? false,
+          ingredients: {
+            ingredient_translations: [
+              { locale: 'ka', name: ingredient.name.ka },
+              { locale: 'en', name: ingredient.name.en },
+            ],
+          },
+          recipe_ingredient_translations: ingredient.preparationNote
+            ? [
+                { locale: 'ka', preparation_note: ingredient.preparationNote.ka },
+                { locale: 'en', preparation_note: ingredient.preparationNote.en },
+              ]
+            : [],
+        })),
+        recipe_steps: value.steps.map((step) => ({
+          id: step.stepNumber,
+          step_number: step.stepNumber,
+          duration_minutes: step.durationMinutes ?? null,
+          temperature_celsius: step.temperatureCelsius ?? null,
+          recipe_step_translations: [
+            { locale: 'ka', instruction: step.instruction.ka },
+            { locale: 'en', instruction: step.instruction.en },
+          ],
+        })),
+      })
+      setLoading(false)
+      return
+    }
     void supabase
       .from('recipes')
       .select(

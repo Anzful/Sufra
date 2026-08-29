@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
+import { isMockMode } from '@/lib/data-mode'
+import { getMockSnapshot, setGroceryCheckedMock } from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
 import { useLocale } from '@/providers/locale-provider'
 
@@ -22,6 +24,7 @@ interface Item {
   purchase_unit: MeasurementUnit
   estimated_cost_gel: number | null
   is_checked: boolean
+  pantry_deduction_quantity?: number
   ingredients: { ingredient_translations: Array<{ locale: Locale; name: string }> }
   aisles: { aisle_translations: Array<{ locale: Locale; name: string }> } | null
 }
@@ -37,6 +40,34 @@ export default function GroceryScreen() {
   const [loading, setLoading] = useState(true)
 
   async function load() {
+    if (isMockMode()) {
+      const list = getMockSnapshot().groceryList
+      setTotal(list?.estimatedTotalGel ?? null)
+      setItems(
+        (list?.items ?? []).map((item) => ({
+          id: item.id,
+          purchase_quantity: item.purchaseQuantity,
+          purchase_unit: item.purchaseUnit,
+          estimated_cost_gel: item.estimatedCostGel,
+          is_checked: item.checked,
+          pantry_deduction_quantity: item.pantryDeductionGrams,
+          ingredients: {
+            ingredient_translations: [
+              { locale: 'ka' as const, name: item.name.ka },
+              { locale: 'en' as const, name: item.name.en },
+            ],
+          },
+          aisles: {
+            aisle_translations: [
+              { locale: 'ka' as const, name: item.aisle.ka },
+              { locale: 'en' as const, name: item.aisle.en },
+            ],
+          },
+        })),
+      )
+      setLoading(false)
+      return
+    }
     const plan = await supabase
       .from('weekly_plans')
       .select('id')
@@ -81,11 +112,11 @@ export default function GroceryScreen() {
         candidate.id === item.id ? { ...candidate, is_checked: next } : candidate,
       ),
     )
-    const result = await supabase
-      .from('grocery_list_items')
-      .update({ is_checked: next })
-      .eq('id', item.id)
-    if (result.error)
+    const error = isMockMode()
+      ? (setGroceryCheckedMock(item.id, next), null)
+      : (await supabase.from('grocery_list_items').update({ is_checked: next }).eq('id', item.id))
+          .error
+    if (error)
       setItems((current) =>
         current.map((candidate) =>
           candidate.id === item.id ? { ...candidate, is_checked: !next } : candidate,
@@ -135,6 +166,12 @@ export default function GroceryScreen() {
                     {localizedName(item.ingredients.ingredient_translations, locale)}
                   </Text>
                   <Text style={styles.aisle}>{aisle}</Text>
+                  {item.pantry_deduction_quantity ? (
+                    <Text style={styles.pantry}>
+                      {locale === 'ka' ? 'მარაგიდან' : 'From pantry'}:{' '}
+                      {item.pantry_deduction_quantity}g
+                    </Text>
+                  ) : null}
                 </View>
                 <View>
                   <Text style={styles.quantity}>
@@ -217,6 +254,7 @@ const styles = StyleSheet.create({
   name: { color: colors.ink, fontSize: 15, fontWeight: '800' },
   done: { color: colors.muted, textDecorationLine: 'line-through' },
   aisle: { color: colors.muted, fontSize: 11, marginTop: 3 },
+  pantry: { color: colors.leaf, fontSize: 10, marginTop: 2 },
   quantity: { color: colors.ink, fontSize: 12, fontWeight: '800', textAlign: 'right' },
   price: { color: colors.muted, fontSize: 11, marginTop: 3, textAlign: 'right' },
   empty: { color: colors.muted, paddingVertical: 24, textAlign: 'center' },

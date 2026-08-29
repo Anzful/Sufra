@@ -13,7 +13,10 @@ import { redirect } from 'next/navigation'
 import { AppHeader } from '@/components/app-header'
 import { GeneratePlanButton } from '@/components/generate-plan-button'
 import { GroceryCheckbox } from '@/components/grocery-checkbox'
+import { MockPlanPage } from '@/components/mock-plan-page'
+import { isMockMode } from '@/lib/data-mode'
 import { requireLocale } from '@/lib/locale'
+import { readMockSnapshot } from '@/lib/mock-server'
 import { createClient } from '@/lib/supabase/server'
 
 interface Translation {
@@ -106,6 +109,12 @@ function quantityLabel(quantity: number, unit: MeasurementUnit, locale: Locale):
 
 export default async function PlanPage({ params }: { params: Promise<{ locale: string }> }) {
   const locale = requireLocale((await params).locale)
+  if (isMockMode()) {
+    const snapshot = await readMockSnapshot()
+    if (!snapshot.session) redirect(`/${locale}/sign-in`)
+    if (!snapshot.onboardingComplete) redirect(`/${locale}/onboarding`)
+    return <MockPlanPage locale={locale} snapshot={snapshot} />
+  }
   const supabase = await createClient()
   const claims = await supabase.auth.getClaims()
   const userId = claims.data?.claims?.sub

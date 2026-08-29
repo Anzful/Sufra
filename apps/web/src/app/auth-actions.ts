@@ -1,6 +1,9 @@
 'use server'
 
+import { createDefaultMockPersistedState, mockSignIn, mockSignUp } from '@sufra/shared'
 import { isLocale } from '@/lib/locale'
+import { isMockMode } from '@/lib/data-mode'
+import { clearMockState, readMockState, writeMockState } from '@/lib/mock-server'
 import { createClient } from '@/lib/supabase/server'
 import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -28,6 +31,16 @@ export async function authAction(
           ? 'შეიყვანე ელფოსტა და მინიმუმ 8-ნიშნა პაროლი.'
           : 'Enter an email and a password of at least 8 characters.',
     }
+  }
+
+  if (isMockMode()) {
+    const state = await readMockState()
+    await writeMockState(
+      intent === 'signup'
+        ? mockSignUp(state, email)
+        : mockSignIn(state ?? createDefaultMockPersistedState(), email),
+    )
+    redirect(intent === 'signup' ? `/${locale}/onboarding` : `/${locale}/plan`)
   }
 
   const supabase = await createClient()
@@ -79,6 +92,10 @@ export async function authAction(
 export async function signOutAction(formData: FormData) {
   const requestedLocale = String(formData.get('locale') ?? 'ka')
   const locale = isLocale(requestedLocale) ? requestedLocale : 'ka'
+  if (isMockMode()) {
+    await clearMockState()
+    redirect(`/${locale}`)
+  }
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect(`/${locale}`)
