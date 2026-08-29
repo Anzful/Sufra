@@ -4,6 +4,7 @@ import {
   createMockSufraSnapshot,
   mockGeneratePlan,
   mockSaveProfile,
+  mockSwapMeal,
   profileInputSchema,
   type ProfileInput,
 } from '@sufra/shared'
@@ -37,4 +38,16 @@ export async function saveMockProfileAction(profile: ProfileInput): Promise<void
   const state = await readMockState()
   if (!state.session) throw new Error('Mock session is not authenticated.')
   await writeMockState(mockSaveProfile(state, profileInputSchema.parse(profile)))
+}
+
+export async function swapMockMealAction(
+  mealId: string,
+  recipeId: string,
+  locale: 'ka' | 'en',
+): Promise<void> {
+  if (locale !== 'ka' && locale !== 'en') throw new Error('Unsupported locale.')
+  const state = await readMockState()
+  if (!state.session) throw new Error('Mock session is not authenticated.')
+  await writeMockState(mockSwapMeal(state, mealId, recipeId))
+  revalidatePath(`/${locale}/plan`)
 }

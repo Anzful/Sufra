@@ -37,6 +37,24 @@ function decodeState(value: string | undefined): MockPersistedState {
       checkedGroceryItemIds: Array.isArray(parsed.checkedGroceryItemIds)
         ? parsed.checkedGroceryItemIds.filter((id): id is string => typeof id === 'string')
         : [],
+      pantryItems: Array.isArray(parsed.pantryItems)
+        ? parsed.pantryItems.filter(
+            (item): item is MockPersistedState['pantryItems'][number] =>
+              typeof item?.id === 'string' &&
+              typeof item.ingredientId === 'string' &&
+              typeof item.quantityGrams === 'number' &&
+              item.quantityGrams > 0 &&
+              (item.expiresOn === null || typeof item.expiresOn === 'string'),
+          )
+        : fallback.pantryItems,
+      mealRecipeOverrides:
+        parsed.mealRecipeOverrides && typeof parsed.mealRecipeOverrides === 'object'
+          ? Object.fromEntries(
+              Object.entries(parsed.mealRecipeOverrides).filter(
+                (entry): entry is [string, string] => typeof entry[1] === 'string',
+              ),
+            )
+          : {},
     }
   } catch {
     return fallback

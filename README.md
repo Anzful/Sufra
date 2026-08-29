@@ -14,7 +14,7 @@ The repository is a pnpm/Turborepo monorepo with a Next.js web app, Expo mobile 
 - An authenticated, idempotent, rate-limited meal-plan Edge Function with OpenAI Responses API and Anthropic structured-output adapters.
 - A bounded repair pass followed by deterministic server-side constraint validation. AI output is never trusted for nutrition, pricing, or grocery arithmetic.
 - A small bilingual starter catalogue for development. Its nutrition records are deliberately flagged unverified.
-- A zero-configuration interactive mock mode for web and mobile. It covers mock authentication, onboarding persistence, a full 21-meal week, detailed recipes, plan regeneration, an aisle-grouped grocery checklist, pantry deductions, settings, and Georgian/English switching.
+- A zero-configuration interactive mock mode for web and mobile. It covers mock authentication, onboarding persistence, a full 21-meal week, detailed recipes, plan regeneration, meal swaps, an editable pantry, selected-store price adjustments, deterministic grocery recalculation, an aisle-grouped checklist, settings, and Georgian/English switching.
 
 The broader product and research rationale is in [docs/architecture-blueprint.md](docs/architecture-blueprint.md).
 
@@ -136,7 +136,7 @@ The Edge Function can be checked independently with Deno:
 deno check --config supabase/functions/deno.json supabase/functions/generate-weekly-plan/index.ts
 ```
 
-Current verification covers all three TypeScript projects, nine shared-domain tests, Next.js production compilation, iOS/Android Metro exports, Expo dependency compatibility, and Deno typechecking. A full migration/RLS integration run still requires Docker or a linked Supabase project.
+Current verification covers all three TypeScript projects, thirteen shared-domain tests, Next.js production compilation, iOS/Android Metro exports, Expo dependency compatibility, and Deno typechecking. A full migration/RLS integration run still requires Docker or a linked Supabase project.
 
 ## Data policy before production
 

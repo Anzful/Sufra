@@ -1,5 +1,6 @@
 import { formatGel, getWeekStartDate, type Locale, type MeasurementUnit } from '@sufra/shared'
-import { useEffect, useState } from 'react'
+import { useFocusEffect } from 'expo-router'
+import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -40,6 +41,7 @@ export default function GroceryScreen() {
   const [loading, setLoading] = useState(true)
 
   async function load() {
+    setLoading(true)
     if (isMockMode()) {
       const list = getMockSnapshot().groceryList
       setTotal(list?.estimatedTotalGel ?? null)
@@ -101,9 +103,11 @@ export default function GroceryScreen() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    void load()
-  }, [])
+  useFocusEffect(
+    useCallback(() => {
+      void load()
+    }, [locale]),
+  )
 
   async function toggle(item: Item) {
     const next = !item.is_checked

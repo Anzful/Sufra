@@ -5,8 +5,11 @@ import {
   createMockSufraSnapshot,
   mockGeneratePlan,
   mockSaveProfile,
+  mockSetPantryItem,
   mockSignIn,
   mockSignUp,
+  mockRemovePantryItem,
+  mockSwapMeal,
   profileInputSchema,
   type MockPersistedState,
   type ProfileInput,
@@ -44,6 +47,24 @@ function loadState(): MockPersistedState {
       checkedGroceryItemIds: Array.isArray(parsed.checkedGroceryItemIds)
         ? parsed.checkedGroceryItemIds.filter((id): id is string => typeof id === 'string')
         : [],
+      pantryItems: Array.isArray(parsed.pantryItems)
+        ? parsed.pantryItems.filter(
+            (item): item is MockPersistedState['pantryItems'][number] =>
+              typeof item?.id === 'string' &&
+              typeof item.ingredientId === 'string' &&
+              typeof item.quantityGrams === 'number' &&
+              item.quantityGrams > 0 &&
+              (item.expiresOn === null || typeof item.expiresOn === 'string'),
+          )
+        : fallback.pantryItems,
+      mealRecipeOverrides:
+        parsed.mealRecipeOverrides && typeof parsed.mealRecipeOverrides === 'object'
+          ? Object.fromEntries(
+              Object.entries(parsed.mealRecipeOverrides).filter(
+                (entry): entry is [string, string] => typeof entry[1] === 'string',
+              ),
+            )
+          : {},
     }
   } catch {
     return fallback
@@ -96,4 +117,20 @@ export function setGroceryCheckedMock(itemId: string, checked: boolean): void {
   if (checked) ids.add(itemId)
   else ids.delete(itemId)
   commit({ ...state, checkedGroceryItemIds: [...ids] })
+}
+
+export function setPantryItemMock(
+  ingredientId: string,
+  quantityGrams: number,
+  expiresOn: string | null = null,
+): void {
+  commit(mockSetPantryItem(state, ingredientId, quantityGrams, expiresOn))
+}
+
+export function removePantryItemMock(pantryItemId: string): void {
+  commit(mockRemovePantryItem(state, pantryItemId))
+}
+
+export function swapMealMock(mealId: string, recipeId: string): void {
+  commit(mockSwapMeal(state, mealId, recipeId))
 }

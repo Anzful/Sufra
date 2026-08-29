@@ -37,6 +37,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="pantry"
+        options={{
+          title: locale === 'ka' ? 'მარაგი' : 'Pantry',
+          tabBarIcon: ({ color }) => <Text style={{ color }}>▦</Text>,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: locale === 'ka' ? 'პარამეტრები' : 'Settings',

@@ -23,6 +23,12 @@ export function AppHeader({ locale }: { locale: Locale }) {
         >
           {translate(locale, 'settings')}
         </Link>
+        <Link
+          className="hidden rounded-full px-4 py-2 text-sm font-semibold lg:block"
+          href={`/${locale}/pantry`}
+        >
+          {locale === 'ka' ? 'მარაგი' : 'Pantry'}
+        </Link>
         <LocaleSwitcher locale={locale} />
         <form action={signOutAction}>
           <input name="locale" type="hidden" value={locale} />

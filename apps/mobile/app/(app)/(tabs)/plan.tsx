@@ -8,8 +8,8 @@ import {
   type MealSlot,
   type SufraTransport,
 } from '@sufra/shared'
-import { router } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { router, useFocusEffect } from 'expo-router'
+import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -24,7 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Card, PrimaryButton, Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
 import { isMockMode } from '@/lib/data-mode'
-import { generatePlanMock, getMockSnapshot } from '@/lib/mock-store'
+import { generatePlanMock, getMockSnapshot, swapMealMock } from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
 import { useLocale } from '@/providers/locale-provider'
 
@@ -45,6 +45,7 @@ interface MealRow {
   protein_g: number
   carbohydrate_g: number
   fat_g: number
+  alternative_recipe_ids?: string[]
   recipes: {
     id: string
     recipe_translations: Array<{ locale: Locale; title: string }>
@@ -74,6 +75,7 @@ export default function PlanScreen() {
   const [message, setMessage] = useState('')
 
   async function load() {
+    setLoading(true)
     if (isMockMode()) {
       const snapshot = getMockSnapshot()
       if (!snapshot.plan) {
@@ -103,6 +105,7 @@ export default function PlanScreen() {
             protein_g: meal.nutrition.proteinG,
             carbohydrate_g: meal.nutrition.carbohydrateG,
             fat_g: meal.nutrition.fatG,
+            alternative_recipe_ids: meal.alternativeRecipeIds,
             recipes: {
               id: meal.recipeId,
               recipe_translations: recipe
@@ -145,9 +148,11 @@ export default function PlanScreen() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    void load()
-  }, [])
+  useFocusEffect(
+    useCallback(() => {
+      void load()
+    }, [locale]),
+  )
 
   async function generate() {
     setGenerating(true)
@@ -165,6 +170,13 @@ export default function PlanScreen() {
       setMessage(locale === 'ka' ? 'გეგმის შექმნა ვერ მოხერხდა.' : 'Could not generate the plan.')
     }
     setGenerating(false)
+  }
+
+  function swap(meal: MealRow) {
+    const replacementId = meal.alternative_recipe_ids?.[0]
+    if (!replacementId || !isMockMode()) return
+    swapMealMock(meal.id, replacementId)
+    void load()
   }
 
   if (loading)
@@ -271,12 +283,27 @@ export default function PlanScreen() {
                         </Text>
                         <Text style={styles.mealTitle}>{recipeTitle(meal, locale)}</Text>
                       </View>
-                      <Text style={styles.macro}>
-                        {Math.round(Number(meal.calories))} kcal{`\n`}
-                        {Math.round(Number(meal.protein_g))}P ·{' '}
-                        {Math.round(Number(meal.carbohydrate_g))}C ·{' '}
-                        {Math.round(Number(meal.fat_g))}F
-                      </Text>
+                      <View style={styles.mealActions}>
+                        <Text style={styles.macro}>
+                          {Math.round(Number(meal.calories))} kcal{`\n`}
+                          {Math.round(Number(meal.protein_g))}P ·{' '}
+                          {Math.round(Number(meal.carbohydrate_g))}C ·{' '}
+                          {Math.round(Number(meal.fat_g))}F
+                        </Text>
+                        {isMockMode() && meal.alternative_recipe_ids?.length ? (
+                          <Pressable
+                            onPress={(event) => {
+                              event.stopPropagation()
+                              swap(meal)
+                            }}
+                            style={styles.swap}
+                          >
+                            <Text style={styles.swapText}>
+                              {locale === 'ka' ? 'შეცვლა' : 'Swap'}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
                     </Pressable>
                   ))}
               </View>
@@ -362,6 +389,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   mealCopy: { flex: 1, paddingRight: 10 },
+  mealActions: { alignItems: 'flex-end' },
   mealSlot: {
     color: colors.leaf,
     fontSize: 10,
@@ -371,5 +399,14 @@ const styles = StyleSheet.create({
   },
   mealTitle: { color: colors.ink, fontSize: 15, fontWeight: '800', lineHeight: 20, marginTop: 3 },
   macro: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'right' },
+  swap: {
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginTop: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  swapText: { color: colors.leaf, fontSize: 10, fontWeight: '900' },
   regenerate: { marginTop: 8 },
 })

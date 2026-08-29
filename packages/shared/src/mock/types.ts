@@ -47,6 +47,7 @@ export interface MockPlannedMeal {
   recipeId: string
   nutrition: MacroTotals
   estimatedCostGel: number
+  alternativeRecipeIds: string[]
 }
 
 export interface MockWeeklyPlan {
@@ -61,6 +62,7 @@ export interface MockWeeklyPlan {
 
 export interface MockGroceryItem {
   id: string
+  ingredientId: string
   name: LocalizedText
   aisle: LocalizedText
   purchaseQuantity: number
@@ -69,6 +71,22 @@ export interface MockGroceryItem {
   pantryDeductionGrams: number
   estimatedCostGel: number
   checked: boolean
+}
+
+export interface MockIngredientChoice {
+  id: string
+  name: LocalizedText
+}
+
+export interface MockPantryEntry {
+  id: string
+  ingredientId: string
+  quantityGrams: number
+  expiresOn: string | null
+}
+
+export interface MockPantryItem extends MockPantryEntry {
+  name: LocalizedText
 }
 
 export interface MockGroceryList {
@@ -90,6 +108,8 @@ export interface MockPersistedState {
   planReady: boolean
   planRevision: number
   checkedGroceryItemIds: string[]
+  pantryItems: MockPantryEntry[]
+  mealRecipeOverrides: Record<string, string>
 }
 
 export interface MockSufraSnapshot {
@@ -100,6 +120,8 @@ export interface MockSufraSnapshot {
   appliances: MockChoice[]
   allergens: MockChoice[]
   dietaryPatterns: MockChoice[]
+  ingredients: MockIngredientChoice[]
+  pantryItems: MockPantryItem[]
   recipes: MockRecipe[]
   plan: MockWeeklyPlan | null
   groceryList: MockGroceryList | null

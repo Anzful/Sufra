@@ -9,6 +9,8 @@ import {
 } from '@sufra/shared'
 import Link from 'next/link'
 
+import { swapMockMealAction } from '@/app/mock-actions'
+
 import { AppHeader } from './app-header'
 import { GeneratePlanButton } from './generate-plan-button'
 import { GroceryCheckbox } from './grocery-checkbox'
@@ -160,26 +162,60 @@ export function MockPlanPage({
                     const recipe = recipes.get(meal.recipeId)
                     if (!recipe) return null
                     return (
-                      <Link
-                        className="block rounded-2xl bg-white/65 p-3 transition hover:-translate-y-0.5 hover:bg-white"
-                        href={`/${locale}/recipes/${recipe.id}`}
-                        key={meal.id}
-                      >
-                        <span className="text-[0.66rem] font-black tracking-wider text-[var(--leaf)] uppercase">
-                          {formatMealSlot(meal.mealSlot, locale)}
-                        </span>
-                        <h2 className="mt-1 text-sm font-bold leading-5">{recipe.title[locale]}</h2>
-                        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
-                          {Math.round(meal.nutrition.calories)} kcal ·{' '}
-                          {Math.round(meal.nutrition.proteinG)}g P ·{' '}
-                          {Math.round(meal.nutrition.carbohydrateG)}g C ·{' '}
-                          {Math.round(meal.nutrition.fatG)}g F
-                        </p>
-                        <p className="mt-2 text-[0.68rem] font-bold text-[var(--wine)]">
-                          {recipe.prepMinutes + recipe.cookMinutes} min ·{' '}
-                          {locale === 'ka' ? 'რეცეპტის ნახვა →' : 'View recipe →'}
-                        </p>
-                      </Link>
+                      <div className="rounded-2xl bg-white/65 p-3" key={meal.id}>
+                        <Link
+                          className="block transition hover:-translate-y-0.5"
+                          href={`/${locale}/recipes/${recipe.id}`}
+                        >
+                          <span className="text-[0.66rem] font-black tracking-wider text-[var(--leaf)] uppercase">
+                            {formatMealSlot(meal.mealSlot, locale)}
+                          </span>
+                          <h2 className="mt-1 text-sm font-bold leading-5">
+                            {recipe.title[locale]}
+                          </h2>
+                          <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                            {Math.round(meal.nutrition.calories)} kcal ·{' '}
+                            {Math.round(meal.nutrition.proteinG)}g P ·{' '}
+                            {Math.round(meal.nutrition.carbohydrateG)}g C ·{' '}
+                            {Math.round(meal.nutrition.fatG)}g F
+                          </p>
+                          <p className="mt-2 text-[0.68rem] font-bold text-[var(--wine)]">
+                            {recipe.prepMinutes + recipe.cookMinutes} min ·{' '}
+                            {locale === 'ka' ? 'რეცეპტის ნახვა →' : 'View recipe →'}
+                          </p>
+                        </Link>
+                        {meal.alternativeRecipeIds.length ? (
+                          <details className="mt-3 border-t border-[var(--line)] pt-2">
+                            <summary className="cursor-pointer text-[0.68rem] font-black tracking-wide text-[var(--leaf)] uppercase">
+                              {locale === 'ka' ? 'კერძის შეცვლა' : 'Swap meal'}
+                            </summary>
+                            <div className="mt-2 space-y-2">
+                              {meal.alternativeRecipeIds.map((recipeId) => {
+                                const alternative = recipes.get(recipeId)
+                                if (!alternative) return null
+                                return (
+                                  <form
+                                    action={swapMockMealAction.bind(
+                                      null,
+                                      meal.id,
+                                      recipeId,
+                                      locale,
+                                    )}
+                                    key={recipeId}
+                                  >
+                                    <button
+                                      className="w-full rounded-xl border border-[var(--line)] bg-white px-2 py-2 text-left text-xs font-semibold transition hover:border-[var(--leaf)]"
+                                      type="submit"
+                                    >
+                                      {alternative.title[locale]}
+                                    </button>
+                                  </form>
+                                )
+                              })}
+                            </div>
+                          </details>
+                        ) : null}
+                      </div>
                     )
                   })}
               </div>
