@@ -101,6 +101,59 @@ describe('mock Sufra dataset', () => {
     )
   })
 
+  it('uses every guided answer when building the mock week', () => {
+    const base = createDefaultMockPersistedState()
+    const state = {
+      ...base,
+      profile: {
+        ...base.profile,
+        preferredStoreId: 1,
+        householdSize: 5,
+        budgetAmountGel: 220,
+        mealMoodSlug: 'protein-packed' as const,
+        dietaryPatternIds: [3],
+        applianceIds: [7],
+      },
+    }
+    const snapshot = createMockSufraSnapshot(state)
+    const plannedRecipes = snapshot.plan!.meals.map((meal) =>
+      snapshot.recipes.find((recipe) => recipe.id === meal.recipeId),
+    )
+
+    expect(snapshot.groceryList?.store.en).toBe('Carrefour')
+    expect(snapshot.plan?.meals.every((meal) => meal.servings === 5)).toBe(true)
+    expect(plannedRecipes.every((recipe) => recipe?.dietaryPatternSlugs.includes('vegan'))).toBe(
+      true,
+    )
+    expect(
+      plannedRecipes.every((recipe) =>
+        recipe?.applianceSlugs.every((slug) => slug === 'microwave'),
+      ),
+    ).toBe(true)
+    expect(plannedRecipes.every((recipe) => recipe?.mealMoodSlugs.includes('protein-packed'))).toBe(
+      true,
+    )
+    expect(snapshot.plan?.summary.en).toContain('protein packed')
+    expect(snapshot.plan?.summary.en).toContain('220')
+    expect(snapshot.plan?.warnings).toContain('BUDGET_EXCEEDED')
+  })
+
+  it('prioritises lower-cost recipes when the per-person budget is tight', () => {
+    const base = createDefaultMockPersistedState()
+    const lowBudget = createMockSufraSnapshot({
+      ...base,
+      profile: { ...base.profile, budgetAmountGel: 100 },
+    })
+    const relaxedBudget = createMockSufraSnapshot({
+      ...base,
+      profile: { ...base.profile, budgetAmountGel: 500 },
+    })
+
+    expect(lowBudget.groceryList!.estimatedTotalGel).toBeLessThanOrEqual(
+      relaxedBudget.groceryList!.estimatedTotalGel,
+    )
+  })
+
   it('includes current, cautionary, stale, expired, and promotional mock prices', () => {
     const list = createMockSufraSnapshot(createDefaultMockPersistedState()).groceryList!
     const summary = summarizePriceCoverage(

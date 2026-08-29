@@ -1,12 +1,12 @@
 'use server'
 
-import { createSufraApi, type SufraTransport } from '@sufra/shared'
+import { createSufraApi, getWeekStartDate, type SufraTransport } from '@sufra/shared'
 import { profileInputSchema } from '@sufra/shared/schemas'
 import { redirect } from 'next/navigation'
 
 import { isLocale } from '@/lib/locale'
 import { isMockMode } from '@/lib/data-mode'
-import { saveMockProfileAction } from '@/app/mock-actions'
+import { saveAndGenerateMockPlanAction } from '@/app/mock-actions'
 import { createClient } from '@/lib/supabase/server'
 
 function numberValue(formData: FormData, name: string): number {
@@ -34,6 +34,7 @@ export async function saveOnboardingAction(formData: FormData) {
     householdSize: numberValue(formData, 'householdSize'),
     budgetPeriod: formData.get('budgetPeriod'),
     budgetAmountGel: numberValue(formData, 'budgetAmountGel'),
+    mealMoodSlug: formData.get('mealMoodSlug'),
     dailyCalorieTarget: numberValue(formData, 'dailyCalorieTarget'),
     proteinTargetG: nullableNumberValue(formData, 'proteinTargetG'),
     carbohydrateTargetG: nullableNumberValue(formData, 'carbohydrateTargetG'),
@@ -52,7 +53,7 @@ export async function saveOnboardingAction(formData: FormData) {
 
   if (isMockMode()) {
     try {
-      await saveMockProfileAction(result.data)
+      await saveAndGenerateMockPlanAction(result.data)
     } catch (error) {
       console.error('mock profile save failed', error)
       redirect(`/${locale}/onboarding?error=save`)
@@ -63,11 +64,22 @@ export async function saveOnboardingAction(formData: FormData) {
   const supabase = await createClient()
   const claims = await supabase.auth.getClaims()
   if (!claims.data?.claims?.sub) redirect(`/${locale}/sign-in`)
+  const api = createSufraApi(supabase as unknown as SufraTransport)
   try {
-    await createSufraApi(supabase as unknown as SufraTransport).saveProfile(result.data)
+    await api.saveProfile(result.data)
   } catch (error) {
     console.error('save_profile failed', error)
     redirect(`/${locale}/onboarding?error=save`)
+  }
+  try {
+    await api.generateWeeklyPlan({
+      weekStartDate: getWeekStartDate(),
+      locale,
+      idempotencyKey: crypto.randomUUID(),
+    })
+  } catch (error) {
+    console.error('initial plan generation failed', error)
+    redirect(`/${locale}/onboarding?error=generation`)
   }
   redirect(`/${locale}/plan`)
 }

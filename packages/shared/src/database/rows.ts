@@ -1,4 +1,5 @@
 import type { BudgetPeriod, Locale, MealSlot, MeasurementUnit } from '../schemas/common.ts'
+import type { MealMoodSlug } from '../schemas/profile.ts'
 
 export interface ProfileRow {
   user_id: string
@@ -10,6 +11,7 @@ export interface ProfileRow {
   household_size: number
   budget_period: BudgetPeriod
   budget_amount_gel: number | null
+  meal_mood_slug: MealMoodSlug
   daily_calorie_target: number | null
   protein_target_g: number | null
   carbohydrate_target_g: number | null

@@ -36,6 +36,7 @@ interface LoadedRecipeIngredient {
 export interface LoadedRecipe {
   id: string
   dietary_tags: string[]
+  mood_tags: GenerationContext['mealMoodSlug'][]
   base_servings: number
   prep_minutes: number
   cook_minutes: number
@@ -99,7 +100,7 @@ export async function loadGenerationData(
     admin
       .from('recipes')
       .select(
-        `id, dietary_tags, base_servings, prep_minutes, cook_minutes,
+        `id, dietary_tags, mood_tags, base_servings, prep_minutes, cook_minutes,
          calories_per_serving, protein_g_per_serving, carbohydrate_g_per_serving,
          fat_g_per_serving, fiber_g_per_serving,
          recipe_translations(locale, title, description),
@@ -156,6 +157,7 @@ export async function loadGenerationData(
     allowBatchCooking: profile.allow_batch_cooking,
     requestedBudgetGel: Number(profile.budget_amount_gel),
     budgetPeriod: profile.budget_period,
+    mealMoodSlug: profile.meal_mood_slug ?? 'healthy-comfort',
     nutritionTarget: {
       calories: profile.daily_calorie_target,
       proteinG: profile.protein_target_g === null ? null : Number(profile.protein_target_g),
@@ -216,10 +218,15 @@ export async function loadGenerationData(
         .filter((value): value is string => Boolean(value)),
       allergenSlugs: [...allergenSlugs],
       dietaryPatternSlugs: recipe.dietary_tags,
+      mealMoodSlugs: recipe.mood_tags,
     }
   })
 
-  const candidates = filterCandidateRecipes(recipeCandidates, context)
+  const candidates = filterCandidateRecipes(recipeCandidates, context).sort((left, right) => {
+    const leftMatches = left.mealMoodSlugs.includes(context.mealMoodSlug) ? 0 : 1
+    const rightMatches = right.mealMoodSlugs.includes(context.mealMoodSlug) ? 0 : 1
+    return leftMatches - rightMatches
+  })
   if (candidates.length === 0) throw new Error('NO_SAFE_RECIPE_CANDIDATES')
 
   const storePricingResult = await admin

@@ -1,4 +1,5 @@
 import type { ProfileInput } from '../schemas/profile.ts'
+import type { MealMoodSlug } from '../schemas/profile.ts'
 import type { Locale, MealSlot, MeasurementUnit } from '../schemas/common.ts'
 import type { LocalizedText, MacroTotals } from '../domain/types.ts'
 
@@ -34,6 +35,8 @@ export interface MockRecipe {
   cookMinutes: number
   nutritionPerServing: MacroTotals
   applianceSlugs: string[]
+  dietaryPatternSlugs: string[]
+  mealMoodSlugs: MealMoodSlug[]
   ingredients: MockRecipeIngredient[]
   steps: MockRecipeStep[]
 }

@@ -41,6 +41,13 @@ export async function saveMockProfileAction(profile: ProfileInput): Promise<void
   await writeMockState(mockSaveProfile(state, profileInputSchema.parse(profile)))
 }
 
+export async function saveAndGenerateMockPlanAction(profile: ProfileInput): Promise<void> {
+  const state = await readMockState()
+  if (!state.session) throw new Error('Mock session is not authenticated.')
+  const saved = mockSaveProfile(state, profileInputSchema.parse(profile))
+  await writeMockState(mockGeneratePlan(saved))
+}
+
 export async function swapMockMealAction(
   mealId: string,
   recipeId: string,

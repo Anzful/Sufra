@@ -3,7 +3,7 @@ import type {
   GenerationContext,
 } from '../../../packages/shared/src/domain/types.ts'
 
-export const PROMPT_VERSION = 'weekly-plan-v1'
+export const PROMPT_VERSION = 'weekly-plan-v2'
 
 export function buildPlanInstructions(): string {
   return [
@@ -16,6 +16,7 @@ export function buildPlanInstructions(): string {
     'servings is the total recipe servings prepared for the whole household.',
     'Vary servings modestly when needed to approach the per-person daily nutrition target.',
     'Prefer loved ingredients, avoid disliked ingredients when practical, and never use avoided items.',
+    'Strongly prefer recipes whose mealMoodSlugs contain the requested mealMoodSlug, while keeping enough variety for the week.',
     'Prefer ingredient reuse across the week and respect available appliances and cook-time limits.',
     'Hard safety filtering has already happened; do not attempt to reintroduce excluded recipes.',
     'Write both short summaries naturally: summaryKa in Georgian and summaryEn in English.',

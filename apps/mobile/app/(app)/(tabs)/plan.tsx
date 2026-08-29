@@ -329,9 +329,13 @@ export default function PlanScreen() {
             {plan.validation_warnings.length ? (
               <View style={styles.warning}>
                 <Text style={styles.warningText}>
-                  {locale === 'ka'
-                    ? 'ზოგი ფასი, კვებითი მონაცემი ან მიზანი სავარაუდოა. ცვლილების შემდეგ გადაამოწმე კვირის ჯამები.'
-                    : 'Some pricing, nutrition data, or targets are estimates. Review the weekly totals after an edit.'}
+                  {plan.validation_warnings.includes('BUDGET_EXCEEDED')
+                    ? locale === 'ka'
+                      ? 'ამ მოთხოვნებით ხელმისაწვდომი დემო რეცეპტები ბიუჯეტში ვერ ეტევა. ნაჩვენებია ბიუჯეტზე ორიენტირებული შესაბამისი გეგმა; შეცვალე ბიუჯეტი ან მოთხოვნები.'
+                      : 'No eligible combination of the available demo recipes fits this budget. This is a budget-conscious matching plan; adjust the budget or preferences.'
+                    : locale === 'ka'
+                      ? 'ზოგი ფასი, კვებითი მონაცემი ან მიზანი სავარაუდოა. ცვლილების შემდეგ გადაამოწმე კვირის ჯამები.'
+                      : 'Some pricing, nutrition data, or targets are estimates. Review the weekly totals after an edit.'}
                 </Text>
               </View>
             ) : null}

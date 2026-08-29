@@ -1,6 +1,7 @@
 import { getWeekStartDate } from '../logic/week.ts'
+import { recipeMatchesDiet } from '../logic/candidate-filter.ts'
 import type { LocalizedText, MacroTotals } from '../domain/types.ts'
-import type { ProfileInput } from '../schemas/profile.ts'
+import { mealMoodOptions, type ProfileInput } from '../schemas/profile.ts'
 import type {
   MockChoice,
   MockGroceryItem,
@@ -122,6 +123,8 @@ const recipes: MockRecipe[] = [
     cookMinutes: 0,
     nutritionPerServing: macros(482, 18, 65, 18, 9, 130),
     applianceSlugs: [],
+    dietaryPatternSlugs: ['vegetarian'],
+    mealMoodSlugs: ['speedy-meals', 'low-calorie', 'healthy-comfort', 'gut-friendly'],
     ingredients: [
       { id: 'oats', name: text('შვრიის ფანტელი', 'Rolled oats'), quantity: 100, unit: 'g' },
       { id: 'milk', name: text('რძე', 'Milk'), quantity: 250, unit: 'ml' },
@@ -167,6 +170,8 @@ const recipes: MockRecipe[] = [
     cookMinutes: 12,
     nutritionPerServing: macros(438, 27, 24, 26, 6, 510),
     applianceSlugs: ['stovetop'],
+    dietaryPatternSlugs: ['vegetarian'],
+    mealMoodSlugs: ['speedy-meals', 'low-calorie', 'family-favourites', 'protein-packed'],
     ingredients: [
       { id: 'egg', name: text('კვერცხი', 'Eggs'), quantity: 4, unit: 'piece' },
       { id: 'tomato', name: text('პომიდორი', 'Tomato'), quantity: 2, unit: 'piece' },
@@ -218,6 +223,8 @@ const recipes: MockRecipe[] = [
     cookMinutes: 0,
     nutritionPerServing: macros(426, 21, 54, 15, 7, 180),
     applianceSlugs: [],
+    dietaryPatternSlugs: ['vegetarian'],
+    mealMoodSlugs: ['speedy-meals', 'low-calorie', 'gut-friendly'],
     ingredients: [
       { id: 'matsoni', name: text('მაწონი', 'Matsoni'), quantity: 500, unit: 'g' },
       { id: 'apple', name: text('ვაშლი', 'Apple'), quantity: 2, unit: 'piece' },
@@ -256,6 +263,8 @@ const recipes: MockRecipe[] = [
     cookMinutes: 30,
     nutritionPerServing: macros(684, 48, 78, 20, 8, 590),
     applianceSlugs: ['stovetop'],
+    dietaryPatternSlugs: ['omnivore'],
+    mealMoodSlugs: ['speedy-meals', 'family-favourites', 'fakeaway', 'protein-packed'],
     ingredients: [
       { id: 'chicken', name: text('ქათმის ფილე', 'Chicken breast'), quantity: 600, unit: 'g' },
       { id: 'rice', name: text('თეთრი ბრინჯი', 'White rice'), quantity: 300, unit: 'g' },
@@ -302,6 +311,8 @@ const recipes: MockRecipe[] = [
     cookMinutes: 75,
     nutritionPerServing: macros(628, 28, 92, 16, 24, 460),
     applianceSlugs: ['stovetop'],
+    dietaryPatternSlugs: ['vegan', 'vegetarian'],
+    mealMoodSlugs: ['family-favourites', 'healthy-comfort', 'gut-friendly'],
     ingredients: [
       {
         id: 'beans',
@@ -354,6 +365,8 @@ const recipes: MockRecipe[] = [
     cookMinutes: 35,
     nutritionPerServing: macros(592, 30, 86, 14, 19, 510),
     applianceSlugs: ['stovetop'],
+    dietaryPatternSlugs: ['vegan', 'vegetarian'],
+    mealMoodSlugs: ['low-calorie', 'healthy-comfort', 'gut-friendly', 'protein-packed'],
     ingredients: [
       { id: 'lentils', name: text('წითელი ოსპი', 'Red lentils'), quantity: 320, unit: 'g' },
       { id: 'onion', name: text('ხახვი', 'Onion'), quantity: 1, unit: 'piece' },
@@ -396,6 +409,8 @@ const recipes: MockRecipe[] = [
     cookMinutes: 35,
     nutritionPerServing: macros(724, 49, 71, 27, 10, 620),
     applianceSlugs: ['oven'],
+    dietaryPatternSlugs: ['pescatarian'],
+    mealMoodSlugs: ['low-calorie', 'healthy-comfort', 'protein-packed'],
     ingredients: [
       { id: 'trout', name: text('კალმახი', 'Trout'), quantity: 500, unit: 'g' },
       { id: 'potato', name: text('კარტოფილი', 'Potatoes'), quantity: 600, unit: 'g' },
@@ -441,6 +456,8 @@ const recipes: MockRecipe[] = [
     cookMinutes: 40,
     nutritionPerServing: macros(681, 52, 58, 25, 11, 540),
     applianceSlugs: ['oven'],
+    dietaryPatternSlugs: ['omnivore'],
+    mealMoodSlugs: ['family-favourites', 'healthy-comfort', 'protein-packed'],
     ingredients: [
       { id: 'chicken', name: text('ქათმის ფილე', 'Chicken breast'), quantity: 700, unit: 'g' },
       { id: 'potato', name: text('კარტოფილი', 'Potatoes'), quantity: 700, unit: 'g' },
@@ -472,6 +489,69 @@ const recipes: MockRecipe[] = [
       },
     ],
   },
+  {
+    id: '10000000-0000-4000-8000-000000000009',
+    title: text('ლობიოსა და პომიდვრის სალათი', 'Bean and tomato salad'),
+    description: text(
+      'სწრაფი, ცილებითა და ბოჭკოთი მდიდარი კერძი მომზადების გარეშე.',
+      'A quick, protein- and fibre-rich meal with no cooking required.',
+    ),
+    tips: text(
+      'დაკონსერვებული ლობიო კარგად გარეცხე.',
+      'Rinse canned beans thoroughly before using.',
+    ),
+    baseServings: 2,
+    prepMinutes: 12,
+    cookMinutes: 0,
+    nutritionPerServing: macros(516, 26, 76, 13, 20, 420),
+    applianceSlugs: [],
+    dietaryPatternSlugs: ['vegan', 'vegetarian'],
+    mealMoodSlugs: [
+      'speedy-meals',
+      'low-calorie',
+      'healthy-comfort',
+      'gut-friendly',
+      'protein-packed',
+    ],
+    ingredients: [
+      {
+        id: 'beans',
+        name: text('დაკონსერვებული წითელი ლობიო', 'Canned kidney beans'),
+        quantity: 400,
+        unit: 'g',
+      },
+      { id: 'tomato', name: text('პომიდორი', 'Tomato'), quantity: 3, unit: 'piece' },
+      { id: 'onion', name: text('წითელი ხახვი', 'Red onion'), quantity: 1, unit: 'piece' },
+      { id: 'lemon', name: text('ლიმონი', 'Lemon'), quantity: 1, unit: 'piece' },
+      { id: 'coriander', name: text('ქინძი', 'Coriander'), quantity: 1, unit: 'pack' },
+    ],
+    steps: [
+      {
+        stepNumber: 1,
+        instruction: text(
+          'ლობიო გადაწურე, ცივ წყალში გარეცხე და დიდ ჯამში ჩაყარე.',
+          'Drain and rinse the beans, then add them to a large bowl.',
+        ),
+        durationMinutes: 3,
+      },
+      {
+        stepNumber: 2,
+        instruction: text(
+          'პომიდორი, ხახვი და ქინძი დაჭერი.',
+          'Chop the tomatoes, onion, and coriander.',
+        ),
+        durationMinutes: 6,
+      },
+      {
+        stepNumber: 3,
+        instruction: text(
+          'ყველაფერი აურიე, ლიმონი მოაწურე და შეაზავე.',
+          'Toss everything together, squeeze over the lemon, and season.',
+        ),
+        durationMinutes: 3,
+      },
+    ],
+  },
 ]
 
 export const mockRecipes: MockRecipe[] = recipes
@@ -485,13 +565,14 @@ export const defaultMockProfile: ProfileInput = {
   householdSize: 2,
   budgetPeriod: 'weekly',
   budgetAmountGel: 180,
+  mealMoodSlug: 'healthy-comfort',
   dailyCalorieTarget: 2000,
   proteinTargetG: 120,
   carbohydrateTargetG: 220,
   fatTargetG: 70,
   fiberTargetG: 30,
   mealsPerDay: 3,
-  maxCookMinutes: 60,
+  maxCookMinutes: 120,
   includeLeftovers: true,
   allowBatchCooking: true,
   applianceIds: [1, 2, 3, 5],
@@ -539,10 +620,22 @@ function averageNutrition(meals: MockPlannedMeal[]): MacroTotals {
 }
 
 const recipeIdsBySlot = {
-  breakfast: [recipes[0]!.id, recipes[1]!.id, recipes[2]!.id],
-  lunch: [recipes[3]!.id, recipes[4]!.id, recipes[5]!.id],
-  dinner: [recipes[6]!.id, recipes[7]!.id, recipes[4]!.id, recipes[5]!.id],
+  breakfast: [recipes[0]!.id, recipes[1]!.id, recipes[2]!.id, recipes[8]!.id],
+  lunch: [recipes[3]!.id, recipes[4]!.id, recipes[5]!.id, recipes[8]!.id],
+  dinner: [recipes[6]!.id, recipes[7]!.id, recipes[4]!.id, recipes[5]!.id, recipes[8]!.id],
 } as const
+
+const recipeCostPerServingGel: Record<string, number> = {
+  [recipes[0]!.id]: 3.1,
+  [recipes[1]!.id]: 3.4,
+  [recipes[2]!.id]: 3.6,
+  [recipes[3]!.id]: 5.4,
+  [recipes[4]!.id]: 2.7,
+  [recipes[5]!.id]: 2.4,
+  [recipes[6]!.id]: 7.2,
+  [recipes[7]!.id]: 5.1,
+  [recipes[8]!.id]: 2.5,
+}
 
 function mealOverrideKey(dayIndex: number, mealSlot: string): string {
   return `${dayIndex}:${mealSlot}`
@@ -561,24 +654,57 @@ function buildPlan(state: MockPersistedState): MockWeeklyPlan {
       .filter((appliance) => state.profile.applianceIds.includes(appliance.id))
       .map((appliance) => appliance.slug),
   )
-  const meals = schedule.map((recipeIndex, index): MockPlannedMeal => {
+  const selectedDietSlugs = mockDietaryPatterns
+    .filter((pattern) => state.profile.dietaryPatternIds.includes(pattern.id))
+    .map((pattern) => pattern.slug)
+  const eligibleRecipes = recipes.filter(
+    (recipe) =>
+      recipe.prepMinutes + recipe.cookMinutes <=
+        (state.profile.maxCookMinutes ?? Number.MAX_SAFE_INTEGER) &&
+      recipe.applianceSlugs.every((slug) => availableAppliances.has(slug)) &&
+      recipeMatchesDiet(recipe.dietaryPatternSlugs, selectedDietSlugs),
+  )
+  if (eligibleRecipes.length === 0) {
+    throw new Error('No mock recipes match the selected diet, appliances, and cooking time.')
+  }
+
+  const budgetPerPerson = state.profile.budgetAmountGel / state.profile.householdSize
+  const prioritiseCost = budgetPerPerson < 70
+  const useVariedComfortSchedule =
+    !prioritiseCost && state.profile.mealMoodSlug === 'healthy-comfort'
+  const rankRecipes = (pool: MockRecipe[]) =>
+    [...pool].sort((left, right) => {
+      const leftMood = left.mealMoodSlugs.includes(state.profile.mealMoodSlug) ? 0 : 1
+      const rightMood = right.mealMoodSlugs.includes(state.profile.mealMoodSlug) ? 0 : 1
+      const moodDifference = leftMood - rightMood
+      const costDifference =
+        (recipeCostPerServingGel[left.id] ?? 99) - (recipeCostPerServingGel[right.id] ?? 99)
+      return prioritiseCost
+        ? costDifference || moodDifference || left.id.localeCompare(right.id)
+        : moodDifference || costDifference || left.id.localeCompare(right.id)
+    })
+
+  const meals = Array.from({ length: 21 }, (_, index): MockPlannedMeal => {
     const mealSlot = slots[index % 3]!
     const dayIndex = Math.floor(index / 3)
-    const defaultRecipe = recipes[recipeIndex]!
-    const allowedIds = recipeIdsBySlot[mealSlot].filter((recipeId) => {
-      const candidate = recipes.find((recipe) => recipe.id === recipeId)
-      return candidate?.applianceSlugs.every((slug) => availableAppliances.has(slug)) ?? false
+    const slotRecipes = recipeIdsBySlot[mealSlot].flatMap((recipeId) => {
+      const candidate = eligibleRecipes.find((recipe) => recipe.id === recipeId)
+      return candidate ? [candidate] : []
     })
+    const rankedRecipes = rankRecipes(slotRecipes.length > 0 ? slotRecipes : eligibleRecipes)
+    const selectableRecipes = prioritiseCost ? rankedRecipes.slice(0, 2) : rankedRecipes
+    const scheduledRecipe = recipes[schedule[index] ?? 0]
+    const defaultRecipe =
+      (useVariedComfortSchedule &&
+        scheduledRecipe &&
+        selectableRecipes.find((recipe) => recipe.id === scheduledRecipe.id)) ||
+      selectableRecipes[(dayIndex + revision + (index % 3) * 2) % selectableRecipes.length]!
+    const allowedIds = selectableRecipes.map((recipe) => recipe.id)
     const overrideId = state.mealRecipeOverrides[mealOverrideKey(dayIndex, mealSlot)]
-    const safeDefaultRecipe =
-      (allowedIds.includes(defaultRecipe.id) ? defaultRecipe : undefined) ??
-      recipes.find((candidate) => candidate.id === allowedIds[0]) ??
-      recipes[0]!
     const recipe =
       recipes.find(
         (candidate) => candidate.id === overrideId && allowedIds.includes(candidate.id),
-      ) ?? safeDefaultRecipe
-    const resolvedRecipeIndex = recipes.findIndex((candidate) => candidate.id === recipe.id)
+      ) ?? defaultRecipe
     const servings =
       state.mealServingOverrides[mealOverrideKey(dayIndex, mealSlot)] ?? state.profile.householdSize
     const nutritionScale = servings / state.profile.householdSize
@@ -595,16 +721,21 @@ function buildPlan(state: MockPersistedState): MockWeeklyPlan {
           Math.round(value * nutritionScale * 10) / 10,
         ]),
       ) as unknown as MacroTotals,
-      estimatedCostGel: Math.round((5.2 + resolvedRecipeIndex * 0.43) * nutritionScale * 100) / 100,
+      estimatedCostGel:
+        Math.round((recipeCostPerServingGel[recipe.id] ?? 5) * nutritionScale * 100) / 100,
       alternativeRecipeIds: allowedIds.filter((recipeId) => recipeId !== recipe.id),
     }
   })
+  const store = mockStores.find((item) => item.id === state.profile.preferredStoreId)
+  const storeKa = store?.translations.find((item) => item.locale === 'ka')?.name ?? 'მაღაზიის'
+  const storeEn = store?.translations.find((item) => item.locale === 'en')?.name ?? 'your store'
+  const mood = mealMoodOptions.find((item) => item.slug === state.profile.mealMoodSlug)!
   return {
     id: `20000000-0000-4000-8000-${String(revision + 1).padStart(12, '0')}`,
     weekStartDate: getWeekStartDate(),
     summary: text(
-      'ნიკორას სავარაუდო ფასებზე აწყობილი პრაქტიკული კვირა: ქართული კერძები, ორი სწრაფი საუზმე და ნარჩენების გონივრული გამოყენება.',
-      'A practical week based on estimated Nikora prices, balancing Georgian favourites, quick breakfasts, and planned leftovers.',
+      `${storeKa}-ს სავარაუდო ფასებზე აწყობილი ${mood.title.ka.toLocaleLowerCase('ka-GE')} კვირა ${state.profile.householdSize} ადამიანისთვის, ₾${state.profile.budgetAmountGel}-მდე ბიუჯეტით.`,
+      `A ${mood.title.en.toLowerCase()} week for ${state.profile.householdSize}, based on estimated ${storeEn} prices and a ₾${state.profile.budgetAmountGel} budget.`,
     ),
     estimatedCostGel: 0,
     averageDailyNutrition: averageNutrition(meals),
@@ -975,7 +1106,20 @@ export function createMockSufraSnapshot(state: MockPersistedState): MockSufraSna
     : []
   const estimatedTotalGel =
     Math.round(groceryItems.reduce((total, item) => total + item.estimatedCostGel, 0) * 100) / 100
-  const plan = initialPlan ? { ...initialPlan, estimatedCostGel: estimatedTotalGel } : null
+  const weeklyBudgetGel =
+    state.profile.budgetPeriod === 'daily'
+      ? state.profile.budgetAmountGel * 7
+      : state.profile.budgetAmountGel
+  const budgetExceeded = estimatedTotalGel > weeklyBudgetGel
+  const plan = initialPlan
+    ? {
+        ...initialPlan,
+        estimatedCostGel: estimatedTotalGel,
+        warnings: budgetExceeded
+          ? [...new Set([...initialPlan.warnings, 'BUDGET_EXCEEDED'])]
+          : initialPlan.warnings,
+      }
+    : null
   return {
     session: state.session,
     onboardingComplete: state.onboardingComplete,

@@ -1,21 +1,21 @@
-import { createSufraApi, profileInputSchema, type Locale, type SufraTransport } from '@sufra/shared'
+import {
+  createSufraApi,
+  getWeekStartDate,
+  mealMoodOptions,
+  profileInputSchema,
+  type Locale,
+  type MealMoodSlug,
+  type SufraTransport,
+} from '@sufra/shared'
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { Card, Field, Label, PrimaryButton, Title } from '@/components/ui'
+import { Card, Field, PrimaryButton, Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
 import { isMockMode } from '@/lib/data-mode'
-import { getMockSnapshot, saveProfileMock } from '@/lib/mock-store'
+import { generatePlanMock, getMockSnapshot, saveProfileMock } from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/providers/auth-provider'
 import { useLocale } from '@/providers/locale-provider'
@@ -30,6 +30,8 @@ interface Choice {
   slug: string
   translations: Translation[]
 }
+
+const allowedDietSlugs = new Set(['omnivore', 'vegetarian', 'vegan', 'pescatarian'])
 
 function choiceName(choice: Choice, locale: Locale) {
   return (
@@ -50,31 +52,28 @@ function nullableNumber(value: string): number | null {
 export default function OnboardingScreen() {
   const { session, refreshProfile } = useAuth()
   const { locale, setLocale } = useLocale()
+  const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [stores, setStores] = useState<Choice[]>([])
   const [appliances, setAppliances] = useState<Choice[]>([])
-  const [allergens, setAllergens] = useState<Choice[]>([])
   const [diets, setDiets] = useState<Choice[]>([])
   const [displayName, setDisplayName] = useState('')
   const [city, setCity] = useState('Tbilisi')
   const [preferredStoreId, setPreferredStoreId] = useState(0)
-  const [householdSize, setHouseholdSize] = useState('1')
-  const [budgetPeriod, setBudgetPeriod] = useState<'daily' | 'weekly'>('weekly')
+  const [householdSize, setHouseholdSize] = useState(1)
   const [budget, setBudget] = useState('150')
+  const [mealMoodSlug, setMealMoodSlug] = useState<MealMoodSlug>('healthy-comfort')
+  const [dietId, setDietId] = useState(0)
+  const [applianceIds, setApplianceIds] = useState<number[]>([])
+  const [allergenIds, setAllergenIds] = useState<number[]>([])
   const [calories, setCalories] = useState('2000')
   const [protein, setProtein] = useState('120')
   const [carbs, setCarbs] = useState('220')
-  const [fat, setFat] = useState('65')
+  const [fat, setFat] = useState('70')
   const [fiber, setFiber] = useState('30')
-  const [mealsPerDay, setMealsPerDay] = useState('3')
-  const [maxCookMinutes, setMaxCookMinutes] = useState('45')
-  const [includeLeftovers, setIncludeLeftovers] = useState(true)
-  const [allowBatchCooking, setAllowBatchCooking] = useState(true)
-  const [applianceIds, setApplianceIds] = useState<number[]>([])
-  const [allergenIds, setAllergenIds] = useState<number[]>([])
-  const [dietIds, setDietIds] = useState<number[]>([])
+  const [maxCookMinutes] = useState('120')
 
   useEffect(() => {
     if (!session) return
@@ -82,38 +81,40 @@ export default function OnboardingScreen() {
       if (isMockMode()) {
         const snapshot = getMockSnapshot()
         const row = snapshot.profile
+        const supportedDiets = snapshot.dietaryPatterns.filter((diet) =>
+          allowedDietSlugs.has(diet.slug),
+        )
         setStores(snapshot.stores)
         setAppliances(snapshot.appliances)
-        setAllergens(snapshot.allergens)
-        setDiets(snapshot.dietaryPatterns)
+        setDiets(supportedDiets)
         setApplianceIds(row.applianceIds)
         setAllergenIds(row.allergenIds)
-        setDietIds(row.dietaryPatternIds)
+        setDietId(
+          supportedDiets.find((diet) => row.dietaryPatternIds.includes(diet.id))?.id ??
+            supportedDiets.find((diet) => diet.slug === 'omnivore')?.id ??
+            0,
+        )
         setDisplayName(row.displayName ?? '')
         setCity(row.city)
         setPreferredStoreId(row.preferredStoreId)
-        setHouseholdSize(String(row.householdSize))
-        setBudgetPeriod(row.budgetPeriod)
+        setHouseholdSize(row.householdSize)
         setBudget(String(row.budgetAmountGel))
+        setMealMoodSlug(row.mealMoodSlug)
         setCalories(String(row.dailyCalorieTarget))
         setProtein(String(row.proteinTargetG ?? ''))
         setCarbs(String(row.carbohydrateTargetG ?? ''))
         setFat(String(row.fatTargetG ?? ''))
         setFiber(String(row.fiberTargetG ?? ''))
-        setMealsPerDay(String(row.mealsPerDay))
-        setMaxCookMinutes(String(row.maxCookMinutes ?? ''))
-        setIncludeLeftovers(row.includeLeftovers)
-        setAllowBatchCooking(row.allowBatchCooking)
         setLocale(row.locale)
         setLoading(false)
         return
       }
+
       const userId = session.user.id
       const [
         profile,
         storeRows,
         applianceRows,
-        allergenRows,
         dietRows,
         selectedAppliances,
         selectedAllergens,
@@ -131,13 +132,9 @@ export default function OnboardingScreen() {
           .eq('is_active', true)
           .order('id'),
         supabase
-          .from('allergens')
-          .select('id, slug, translations:allergen_translations(locale, name)')
-          .eq('is_active', true)
-          .order('id'),
-        supabase
           .from('dietary_patterns')
           .select('id, slug, translations:dietary_pattern_translations(locale, name)')
+          .in('slug', ['omnivore', 'vegetarian', 'vegan', 'pescatarian'])
           .eq('is_active', true)
           .order('id'),
         supabase.from('profile_appliances').select('appliance_id').eq('user_id', userId),
@@ -147,79 +144,155 @@ export default function OnboardingScreen() {
           .select('dietary_pattern_id')
           .eq('user_id', userId),
       ])
+      const supportedDiets = (dietRows.data ?? []) as unknown as Choice[]
+      const selectedDietIds = (selectedDiets.data ?? []).map((row) => row.dietary_pattern_id)
       setStores((storeRows.data ?? []) as unknown as Choice[])
       setAppliances((applianceRows.data ?? []) as unknown as Choice[])
-      setAllergens((allergenRows.data ?? []) as unknown as Choice[])
-      setDiets((dietRows.data ?? []) as unknown as Choice[])
+      setDiets(supportedDiets)
       setApplianceIds((selectedAppliances.data ?? []).map((row) => row.appliance_id))
       setAllergenIds((selectedAllergens.data ?? []).map((row) => row.allergen_id))
-      setDietIds((selectedDiets.data ?? []).map((row) => row.dietary_pattern_id))
+      setDietId(
+        supportedDiets.find((diet) => selectedDietIds.includes(diet.id))?.id ??
+          supportedDiets.find((diet) => diet.slug === 'omnivore')?.id ??
+          0,
+      )
       if (profile.data) {
         const row = profile.data
         setDisplayName(row.display_name ?? '')
         setCity(row.city ?? 'Tbilisi')
         setPreferredStoreId(row.preferred_store_id ?? 0)
-        setHouseholdSize(String(row.household_size ?? 1))
-        setBudgetPeriod(row.budget_period ?? 'weekly')
+        setHouseholdSize(row.household_size ?? 1)
         setBudget(String(row.budget_amount_gel ?? 150))
+        const parsedMood = mealMoodOptions.find((option) => option.slug === row.meal_mood_slug)
+        setMealMoodSlug(parsedMood?.slug ?? 'healthy-comfort')
         setCalories(String(row.daily_calorie_target ?? 2000))
         setProtein(String(row.protein_target_g ?? 120))
         setCarbs(String(row.carbohydrate_target_g ?? 220))
-        setFat(String(row.fat_target_g ?? 65))
+        setFat(String(row.fat_target_g ?? 70))
         setFiber(String(row.fiber_target_g ?? 30))
-        setMealsPerDay(String(row.meals_per_day ?? 3))
-        setMaxCookMinutes(String(row.max_cook_minutes ?? 45))
-        setIncludeLeftovers(row.include_leftovers ?? true)
-        setAllowBatchCooking(row.allow_batch_cooking ?? true)
         if (row.locale === 'ka' || row.locale === 'en') setLocale(row.locale)
       }
       setLoading(false)
     })()
   }, [session])
 
-  async function save() {
+  const copy =
+    locale === 'ka'
+      ? {
+          questions: [
+            ['აირჩიე მაღაზია', 'რომელი ქართული სუპერმარკეტის ფასებით დავგეგმოთ?'],
+            [
+              'რამდენი ადამიანისთვის ამზადებ?',
+              'ყველა პორციასა და საყიდლების რაოდენობას ამას მოვარგებთ.',
+            ],
+            ['რა არის შენი კვირის ბიუჯეტი?', 'მიუთითე მთელი კვირის ზედა ზღვარი ლარში.'],
+            ['რის ხასიათზე ხარ?', 'ეს არჩევანი განსაზღვრავს კვირის გემოსა და სტილს.'],
+            ['გაქვს კვების განსაკუთრებული რეჟიმი?', 'ერთი ვარიანტი აირჩიე.'],
+            ['რა ტექნიკა გაქვს?', 'აირჩიე ყველაფერი, რისი გამოყენებაც შეგიძლია.'],
+          ],
+          next: 'შემდეგი',
+          back: 'უკან',
+          none: 'არაფერი',
+          people: 'ადამიანი',
+          weekly: '₾ კვირაში',
+          choose: 'აირჩიე ერთი ვარიანტი.',
+          chooseAppliance: 'აირჩიე მინიმუმ ერთი ტექნიკა.',
+          build: 'ჩემი კვირის გეგმის შექმნა',
+          building: 'შენი კვირა იგეგმება…',
+          invalid: 'გადაამოწმე პასუხები და ხელახლა სცადე.',
+          failed: 'გეგმა ვერ შეიქმნა. ხელახლა სცადე.',
+        }
+      : {
+          questions: [
+            ['Choose your shop', 'Which Georgian supermarket should we use for price estimates?'],
+            [
+              'How many are you cooking for?',
+              'We will scale every serving and grocery quantity to this number.',
+            ],
+            ["What's your weekly budget?", 'Set the spending ceiling for the whole week in GEL.'],
+            ['What are you in the mood for?', 'This shapes the flavour and style of your week.'],
+            ['Any dietary needs?', 'Choose one option.'],
+            ['What appliances do you have?', 'Select everything you are happy to cook with.'],
+          ],
+          next: 'Next',
+          back: 'Back',
+          none: 'None',
+          people: 'people',
+          weekly: 'GEL per week',
+          choose: 'Choose one option.',
+          chooseAppliance: 'Choose at least one appliance.',
+          build: 'Build my weekly plan',
+          building: 'Building your week…',
+          invalid: 'Review your answers and try again.',
+          failed: 'Could not build the plan. Please try again.',
+        }
+
+  const validStep =
+    (step === 0 && preferredStoreId > 0) ||
+    (step === 1 && householdSize >= 1 && householdSize <= 20) ||
+    (step === 2 && Number(budget) > 0) ||
+    (step === 3 && Boolean(mealMoodSlug)) ||
+    (step === 4 && dietId > 0) ||
+    (step === 5 && applianceIds.length > 0)
+
+  function next() {
+    if (!validStep) {
+      setMessage(step === 5 ? copy.chooseAppliance : copy.choose)
+      return
+    }
+    setMessage('')
+    setStep((current) => Math.min(5, current + 1))
+  }
+
+  async function saveAndGenerate() {
     const parsed = profileInputSchema.safeParse({
       displayName: displayName.trim() || null,
       locale,
       timezone: 'Asia/Tbilisi',
-      city: city.trim(),
+      city: city.trim() || 'Tbilisi',
       preferredStoreId,
-      householdSize: Number(householdSize),
-      budgetPeriod,
+      householdSize,
+      budgetPeriod: 'weekly',
       budgetAmountGel: Number(budget),
+      mealMoodSlug,
       dailyCalorieTarget: Number(calories),
       proteinTargetG: nullableNumber(protein),
       carbohydrateTargetG: nullableNumber(carbs),
       fatTargetG: nullableNumber(fat),
       fiberTargetG: nullableNumber(fiber),
-      mealsPerDay: Number(mealsPerDay),
-      maxCookMinutes: nullableNumber(maxCookMinutes),
-      includeLeftovers,
-      allowBatchCooking,
+      mealsPerDay: 3,
+      maxCookMinutes: mealMoodSlug === 'speedy-meals' ? 30 : nullableNumber(maxCookMinutes),
+      includeLeftovers: true,
+      allowBatchCooking: true,
       applianceIds,
       allergenIds,
-      dietaryPatternIds: dietIds,
+      dietaryPatternIds: [dietId],
     })
     if (!parsed.success) {
-      setMessage(
-        locale === 'ka'
-          ? 'გადაამოწმე ყველა რიცხვი და აირჩიე მაღაზია.'
-          : 'Check every number and select a store.',
-      )
+      setMessage(copy.invalid)
       return
     }
     setSaving(true)
     setMessage('')
     try {
-      if (isMockMode()) saveProfileMock(parsed.data)
-      else await createSufraApi(supabase as unknown as SufraTransport).saveProfile(parsed.data)
+      if (isMockMode()) {
+        saveProfileMock(parsed.data)
+        generatePlanMock()
+      } else {
+        const api = createSufraApi(supabase as unknown as SufraTransport)
+        await api.saveProfile(parsed.data)
+        await api.generateWeeklyPlan({
+          weekStartDate: getWeekStartDate(),
+          locale,
+          idempotencyKey: crypto.randomUUID(),
+        })
+      }
+      await refreshProfile()
+      router.replace('/(app)/(tabs)/plan')
     } catch {
-      setMessage(locale === 'ka' ? 'პროფილი ვერ შეინახა.' : 'Could not save the profile.')
+      setMessage(copy.failed)
       setSaving(false)
-      return
     }
-    await refreshProfile()
-    router.replace('/(app)/(tabs)/plan')
   }
 
   if (loading)
@@ -229,156 +302,170 @@ export default function OnboardingScreen() {
       </View>
     )
 
+  const [title, description] = copy.questions[step]!
+
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text onPress={() => router.back()} style={styles.back}>
-            ‹
-          </Text>
-          <Text onPress={() => setLocale(locale === 'ka' ? 'en' : 'ka')} style={styles.language}>
-            {locale === 'ka' ? 'English' : 'ქართული'}
-          </Text>
+          <Pressable
+            onPress={() => (step > 0 ? setStep((value) => value - 1) : router.back())}
+            style={styles.headerButton}
+          >
+            <Text style={styles.back}>‹</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setLocale(locale === 'ka' ? 'en' : 'ka')}
+            style={styles.headerButton}
+          >
+            <Text style={styles.language}>{locale === 'ka' ? 'English' : 'ქართული'}</Text>
+          </Pressable>
         </View>
-        <Text style={styles.eyebrow}>01 · PROFILE</Text>
+
+        <Text style={styles.eyebrow}>01 · {locale === 'ka' ? 'შენი გეგმა' : 'YOUR PLAN'}</Text>
         <Title>
-          {locale === 'ka' ? 'მოვარგოთ სუფრა შენს ცხოვრებას' : 'Let’s make Sufra fit your life'}
+          {locale === 'ka' ? 'ექვსი პასუხი — მთელი კვირა' : 'Six answers, one complete week'}
         </Title>
         <Text style={styles.lead}>
           {locale === 'ka'
-            ? 'ალერგენები მკაცრი შეზღუდვაა; ფასი და მაკროები ყოველი გეგმისას მოწმდება.'
-            : 'Allergens are hard constraints; pricing and nutrition are checked for every plan.'}
+            ? 'ბოლოს სუფრა მაშინვე შექმნის კერძებს, რეცეპტებსა და საყიდლების სიას.'
+            : 'At the end, Sufra immediately builds your meals, recipes, and grocery list.'}
         </Text>
 
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {locale === 'ka' ? 'ოჯახი და რიტმი' : 'Household and rhythm'}
-          </Text>
-          <Label>{locale === 'ka' ? 'სახელი' : 'Name'}</Label>
-          <Field onChangeText={setDisplayName} value={displayName} />
-          <View style={styles.gap} />
-          <Label>{locale === 'ka' ? 'ქალაქი' : 'City'}</Label>
-          <Field onChangeText={setCity} value={city} />
-          <View style={styles.columns}>
-            <View style={styles.column}>
-              <Label>{locale === 'ka' ? 'ადამიანი' : 'People'}</Label>
+        <View style={styles.progress}>
+          {copy.questions.map((_, index) => (
+            <View
+              key={index}
+              style={[styles.progressSegment, index <= step && styles.progressSegmentActive]}
+            />
+          ))}
+        </View>
+
+        <Card style={styles.questionCard}>
+          <Text style={styles.stepCount}>{step + 1} / 6</Text>
+          <Text style={styles.questionTitle}>{title}</Text>
+          <Text style={styles.questionDescription}>{description}</Text>
+
+          {step === 0 ? (
+            <View style={styles.choices}>
+              {stores.map((store) => (
+                <Chip
+                  key={store.id}
+                  label={choiceName(store, locale)}
+                  onPress={() => {
+                    setPreferredStoreId(store.id)
+                    setMessage('')
+                  }}
+                  selected={preferredStoreId === store.id}
+                />
+              ))}
+            </View>
+          ) : null}
+
+          {step === 1 ? (
+            <View style={styles.counter}>
+              <CounterButton
+                label="−"
+                onPress={() => setHouseholdSize((value) => Math.max(1, value - 1))}
+              />
+              <View style={styles.counterValueWrap}>
+                <Text style={styles.counterValue}>{householdSize}</Text>
+                <Text style={styles.counterLabel}>{copy.people}</Text>
+              </View>
+              <CounterButton
+                label="+"
+                onPress={() => setHouseholdSize((value) => Math.min(20, value + 1))}
+              />
+            </View>
+          ) : null}
+
+          {step === 2 ? (
+            <View style={styles.budgetWrap}>
+              <Text style={styles.currency}>₾</Text>
               <Field
-                keyboardType="number-pad"
-                onChangeText={setHouseholdSize}
-                value={householdSize}
+                keyboardType="decimal-pad"
+                onChangeText={setBudget}
+                style={styles.budgetField}
+                value={budget}
               />
+              <Text style={styles.budgetLabel}>{copy.weekly}</Text>
             </View>
-            <View style={styles.column}>
-              <Label>{locale === 'ka' ? 'კვება / დღე' : 'Meals / day'}</Label>
-              <Field keyboardType="number-pad" onChangeText={setMealsPerDay} value={mealsPerDay} />
+          ) : null}
+
+          {step === 3 ? (
+            <View style={styles.optionList}>
+              {mealMoodOptions.map((option) => (
+                <OptionCard
+                  description={option.description[locale]}
+                  key={option.slug}
+                  onPress={() => {
+                    setMealMoodSlug(option.slug)
+                    setMessage('')
+                  }}
+                  selected={mealMoodSlug === option.slug}
+                  title={option.title[locale]}
+                />
+              ))}
             </View>
-          </View>
-          <View style={styles.gap} />
-          <Label>{locale === 'ka' ? 'მომზადების მაქს. დრო (წთ)' : 'Maximum cook time (min)'}</Label>
-          <Field
-            keyboardType="number-pad"
-            onChangeText={setMaxCookMinutes}
-            value={maxCookMinutes}
-          />
-          <Toggle
-            label={locale === 'ka' ? 'ნარჩენების გამოყენება' : 'Use leftovers'}
-            value={includeLeftovers}
-            onValueChange={setIncludeLeftovers}
-          />
-          <Toggle
-            label={locale === 'ka' ? 'რამდენიმე პორციის ერთად მომზადება' : 'Allow batch cooking'}
-            value={allowBatchCooking}
-            onValueChange={setAllowBatchCooking}
-          />
+          ) : null}
+
+          {step === 4 ? (
+            <View style={styles.optionList}>
+              {diets.map((diet) => (
+                <OptionCard
+                  key={diet.id}
+                  onPress={() => {
+                    setDietId(diet.id)
+                    setMessage('')
+                  }}
+                  selected={dietId === diet.id}
+                  title={diet.slug === 'omnivore' ? copy.none : choiceName(diet, locale)}
+                />
+              ))}
+            </View>
+          ) : null}
+
+          {step === 5 ? (
+            <View style={styles.choices}>
+              {appliances.map((appliance) => (
+                <Chip
+                  key={appliance.id}
+                  label={choiceName(appliance, locale)}
+                  onPress={() => {
+                    setApplianceIds(toggleId(applianceIds, appliance.id))
+                    setMessage('')
+                  }}
+                  selected={applianceIds.includes(appliance.id)}
+                />
+              ))}
+            </View>
+          ) : null}
+
+          {message ? <Text style={styles.message}>{message}</Text> : null}
         </Card>
 
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {locale === 'ka' ? 'მაღაზია და ბიუჯეტი' : 'Store and budget'}
-          </Text>
-          <View style={styles.chips}>
-            {stores.map((store) => (
-              <Chip
-                key={store.id}
-                label={choiceName(store, locale)}
-                selected={preferredStoreId === store.id}
-                onPress={() => setPreferredStoreId(store.id)}
-              />
-            ))}
-          </View>
-          <View style={styles.gap} />
-          <Label>{locale === 'ka' ? 'ბიუჯეტი (₾)' : 'Budget (GEL)'}</Label>
-          <Field keyboardType="decimal-pad" onChangeText={setBudget} value={budget} />
-          <View style={styles.chips}>
-            <Chip
-              label={locale === 'ka' ? 'კვირეული' : 'Weekly'}
-              selected={budgetPeriod === 'weekly'}
-              onPress={() => setBudgetPeriod('weekly')}
+        <View style={styles.actions}>
+          {step > 0 ? (
+            <Pressable
+              onPress={() => {
+                setMessage('')
+                setStep((value) => Math.max(0, value - 1))
+              }}
+              style={styles.secondaryButton}
+            >
+              <Text style={styles.secondaryButtonText}>← {copy.back}</Text>
+            </Pressable>
+          ) : (
+            <View />
+          )}
+          <View style={styles.primaryAction}>
+            <PrimaryButton
+              disabled={saving}
+              onPress={step === 5 ? saveAndGenerate : next}
+              title={step === 5 ? (saving ? copy.building : copy.build) : `${copy.next} →`}
             />
-            <Chip
-              label={locale === 'ka' ? 'დღიური' : 'Daily'}
-              selected={budgetPeriod === 'daily'}
-              onPress={() => setBudgetPeriod('daily')}
-            />
           </View>
-        </Card>
-
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {locale === 'ka' ? 'კვების მიზნები' : 'Nutrition targets'}
-          </Text>
-          <Label>kcal / {locale === 'ka' ? 'დღე' : 'day'}</Label>
-          <Field keyboardType="number-pad" onChangeText={setCalories} value={calories} />
-          <View style={styles.columns}>
-            <View style={styles.column}>
-              <Label>{locale === 'ka' ? 'ცილა (გ)' : 'Protein (g)'}</Label>
-              <Field keyboardType="decimal-pad" onChangeText={setProtein} value={protein} />
-            </View>
-            <View style={styles.column}>
-              <Label>{locale === 'ka' ? 'ნახშირწყალი (გ)' : 'Carbs (g)'}</Label>
-              <Field keyboardType="decimal-pad" onChangeText={setCarbs} value={carbs} />
-            </View>
-          </View>
-          <View style={styles.columns}>
-            <View style={styles.column}>
-              <Label>{locale === 'ka' ? 'ცხიმი (გ)' : 'Fat (g)'}</Label>
-              <Field keyboardType="decimal-pad" onChangeText={setFat} value={fat} />
-            </View>
-            <View style={styles.column}>
-              <Label>{locale === 'ka' ? 'ბოჭკო (გ)' : 'Fibre (g)'}</Label>
-              <Field keyboardType="decimal-pad" onChangeText={setFiber} value={fiber} />
-            </View>
-          </View>
-        </Card>
-
-        <ChoiceSection
-          title={locale === 'ka' ? 'კვების სტილი' : 'Dietary pattern'}
-          choices={diets}
-          selected={dietIds}
-          locale={locale}
-          onToggle={(id) => setDietIds(toggleId(dietIds, id))}
-        />
-        <ChoiceSection
-          title={locale === 'ka' ? 'ალერგენები — სრულად გამოირიცხოს' : 'Allergens — always exclude'}
-          choices={allergens}
-          selected={allergenIds}
-          locale={locale}
-          onToggle={(id) => setAllergenIds(toggleId(allergenIds, id))}
-        />
-        <ChoiceSection
-          title={locale === 'ka' ? 'სამზარეულოს ტექნიკა' : 'Kitchen equipment'}
-          choices={appliances}
-          selected={applianceIds}
-          locale={locale}
-          onToggle={(id) => setApplianceIds(toggleId(applianceIds, id))}
-        />
-
-        {message ? <Text style={styles.message}>{message}</Text> : null}
-        <PrimaryButton
-          disabled={saving}
-          onPress={save}
-          title={locale === 'ka' ? 'შენახვა და გაგრძელება' : 'Save and continue'}
-        />
+        </View>
       </ScrollView>
     </SafeAreaView>
   )
@@ -400,54 +487,34 @@ function Chip({
   )
 }
 
-function Toggle({
-  label,
-  value,
-  onValueChange,
+function OptionCard({
+  title,
+  description,
+  selected,
+  onPress,
 }: {
-  label: string
-  value: boolean
-  onValueChange: (value: boolean) => void
+  title: string
+  description?: string
+  selected: boolean
+  onPress: () => void
 }) {
   return (
-    <View style={styles.toggle}>
-      <Text style={styles.toggleText}>{label}</Text>
-      <Switch
-        onValueChange={onValueChange}
-        value={value}
-        trackColor={{ false: colors.paperDeep, true: colors.wine }}
-      />
-    </View>
+    <Pressable onPress={onPress} style={[styles.option, selected && styles.optionSelected]}>
+      <Text style={[styles.optionTitle, selected && styles.optionTextSelected]}>{title}</Text>
+      {description ? (
+        <Text style={[styles.optionDescription, selected && styles.optionDescriptionSelected]}>
+          {description}
+        </Text>
+      ) : null}
+    </Pressable>
   )
 }
 
-function ChoiceSection({
-  title,
-  choices,
-  selected,
-  locale,
-  onToggle,
-}: {
-  title: string
-  choices: Choice[]
-  selected: number[]
-  locale: Locale
-  onToggle: (id: number) => void
-}) {
+function CounterButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <Card style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.chips}>
-        {choices.map((choice) => (
-          <Chip
-            key={choice.id}
-            label={choiceName(choice, locale)}
-            selected={selected.includes(choice.id)}
-            onPress={() => onToggle(choice.id)}
-          />
-        ))}
-      </View>
-    </Card>
+    <Pressable onPress={onPress} style={styles.counterButton}>
+      <Text style={styles.counterButtonText}>{label}</Text>
+    </Pressable>
   )
 }
 
@@ -464,10 +531,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 22,
+    marginBottom: 20,
   },
-  back: { color: colors.ink, fontSize: 36, paddingHorizontal: 6 },
-  language: { color: colors.wine, fontSize: 14, fontWeight: '800', padding: 8 },
+  headerButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 6 },
+  back: { color: colors.ink, fontSize: 36, lineHeight: 38 },
+  language: { color: colors.wine, fontSize: 14, fontWeight: '800' },
   eyebrow: {
     color: colors.wine,
     fontSize: 11,
@@ -475,39 +543,104 @@ const styles = StyleSheet.create({
     letterSpacing: 1.7,
     marginBottom: 10,
   },
-  lead: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 14 },
-  section: { marginTop: 18 },
-  sectionTitle: {
+  lead: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 12 },
+  progress: { flexDirection: 'row', gap: 6, marginTop: 24 },
+  progressSegment: { backgroundColor: colors.line, borderRadius: 999, flex: 1, height: 5 },
+  progressSegmentActive: { backgroundColor: colors.wine },
+  questionCard: { marginTop: 16, minHeight: 410 },
+  stepCount: {
+    color: colors.wine,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
+  questionTitle: {
     color: colors.ink,
     fontFamily: 'Georgia',
-    fontSize: 21,
+    fontSize: 26,
     fontWeight: '800',
-    marginBottom: 18,
+    lineHeight: 33,
+    marginTop: 10,
   },
-  gap: { height: 14 },
-  columns: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  column: { flex: 1 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  questionDescription: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 8 },
+  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 22 },
   chip: {
     backgroundColor: colors.paperDeep,
     borderColor: colors.line,
     borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
   },
   chipSelected: { backgroundColor: colors.wine, borderColor: colors.wine },
-  chipText: { color: colors.ink, fontSize: 12, fontWeight: '700' },
+  chipText: { color: colors.ink, fontSize: 13, fontWeight: '700' },
   chipTextSelected: { color: 'white' },
-  toggle: {
-    alignItems: 'center',
-    borderTopColor: colors.line,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 14,
-    paddingTop: 12,
+  optionList: { gap: 10, marginTop: 22 },
+  option: {
+    backgroundColor: colors.paperDeep,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 15,
   },
-  toggleText: { color: colors.ink, flex: 1, fontSize: 13, fontWeight: '700', paddingRight: 10 },
-  message: { color: colors.danger, fontSize: 13, lineHeight: 19, marginVertical: 16 },
+  optionSelected: { backgroundColor: colors.wine, borderColor: colors.wine },
+  optionTitle: { color: colors.ink, fontSize: 14, fontWeight: '900' },
+  optionDescription: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  optionTextSelected: { color: 'white' },
+  optionDescriptionSelected: { color: 'rgba(255,255,255,0.76)' },
+  counter: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 18,
+    marginTop: 54,
+  },
+  counterButton: {
+    alignItems: 'center',
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 54,
+    justifyContent: 'center',
+    width: 54,
+  },
+  counterButtonText: { color: colors.wine, fontSize: 28, fontWeight: '900' },
+  counterValueWrap: { alignItems: 'center', minWidth: 90 },
+  counterValue: { color: colors.ink, fontFamily: 'Georgia', fontSize: 48, fontWeight: '800' },
+  counterLabel: { color: colors.muted, fontSize: 13, fontWeight: '700', marginTop: 2 },
+  budgetWrap: { alignSelf: 'center', marginTop: 52, minWidth: 220, position: 'relative' },
+  currency: {
+    color: colors.wine,
+    fontSize: 26,
+    fontWeight: '900',
+    left: 16,
+    position: 'absolute',
+    top: 12,
+    zIndex: 1,
+  },
+  budgetField: { fontSize: 25, fontWeight: '900', paddingLeft: 48, textAlign: 'center' },
+  budgetLabel: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 9,
+    textAlign: 'center',
+  },
+  message: { color: colors.danger, fontSize: 13, fontWeight: '700', lineHeight: 19, marginTop: 18 },
+  actions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+    marginTop: 18,
+  },
+  secondaryButton: {
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  secondaryButtonText: { color: colors.ink, fontSize: 13, fontWeight: '800' },
+  primaryAction: { flexShrink: 1, minWidth: 150 },
 })

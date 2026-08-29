@@ -1,4 +1,5 @@
 import type { BudgetPeriod, Locale, MealSlot, MeasurementUnit } from '../schemas/common.ts'
+import type { MealMoodSlug } from '../schemas/profile.ts'
 
 export interface MacroTotals {
   calories: number
@@ -111,6 +112,7 @@ export interface GenerationContext {
   allowBatchCooking: boolean
   requestedBudgetGel: number
   budgetPeriod: BudgetPeriod
+  mealMoodSlug: MealMoodSlug
   nutritionTarget: NutritionTarget
   applianceSlugs: string[]
   allergenSlugs: string[]
@@ -132,4 +134,5 @@ export interface CandidateRecipe {
   ingredientCodes: string[]
   allergenSlugs: string[]
   dietaryPatternSlugs: string[]
+  mealMoodSlugs: MealMoodSlug[]
 }
