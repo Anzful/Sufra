@@ -1,0 +1,9 @@
+node_modules
+.next
+.turbo
+dist
+coverage
+apps/web/next-env.d.ts
+pnpm-lock.yaml
+supabase/.temp
+supabase/migrations

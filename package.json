@@ -1,0 +1,27 @@
+{
+  "name": "sufra",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "dev:web": "pnpm --filter @sufra/web dev",
+    "dev:mobile": "pnpm --filter @sufra/mobile start",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "db:audit": "node scripts/audit-migrations.mjs",
+    "check": "pnpm db:audit && pnpm typecheck && pnpm test && pnpm build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "26.4.0",
+    "prettier": "3.6.2",
+    "turbo": "2.10.12",
+    "typescript": "6.0.3"
+  }
+}

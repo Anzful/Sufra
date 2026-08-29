@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Sufra · სუფრა",
+    "slug": "sufra",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "sufra",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "platforms": ["ios", "android"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ge.sufra.app"
+    },
+    "android": {
+      "package": "ge.sufra.app",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": true
+    },
+    "plugins": ["expo-router", "expo-sqlite", "expo-splash-screen"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

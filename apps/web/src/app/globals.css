@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+
+:root {
+  --ink: #272019;
+  --muted: #71685e;
+  --paper: #f8f3e9;
+  --paper-deep: #eee5d4;
+  --wine: #7d263d;
+  --wine-dark: #58182a;
+  --leaf: #47624a;
+  --gold: #cb9345;
+  --line: rgba(67, 48, 34, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 90% 4%, rgba(203, 147, 69, 0.16), transparent 26rem),
+    radial-gradient(circle at 6% 28%, rgba(71, 98, 74, 0.1), transparent 25rem), var(--paper);
+  font-family: Inter, 'Noto Sans Georgian', 'Helvetica Neue', Arial, sans-serif;
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  color: white;
+  background: var(--wine);
+}
+
+.display-face {
+  font-family: Georgia, 'Noto Serif Georgian', serif;
+  letter-spacing: -0.035em;
+}
+
+.surface {
+  border: 1px solid var(--line);
+  background: rgba(255, 253, 247, 0.82);
+  box-shadow: 0 24px 70px rgba(71, 46, 28, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.field {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.75rem 0.85rem;
+  outline: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.field:focus {
+  border-color: var(--wine);
+  box-shadow: 0 0 0 3px rgba(125, 38, 61, 0.1);
+}
+
+.primary-button {
+  border: 0;
+  border-radius: 999px;
+  color: white;
+  background: var(--wine);
+  padding: 0.78rem 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background 160ms ease;
+}
+
+.primary-button:hover {
+  transform: translateY(-1px);
+  background: var(--wine-dark);
+}
+
+.primary-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+  transform: none;
+}
+
+.quiet-button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0.62rem 1rem;
+  font-weight: 650;
+  cursor: pointer;
+}

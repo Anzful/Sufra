@@ -68,6 +68,7 @@ create table public.recipes (
   owner_user_id uuid references public.users (id) on delete cascade,
   origin public.recipe_origin not null,
   status text not null default 'draft' check (status in ('draft', 'published', 'archived')),
+  dietary_tags text[] not null default '{}',
   base_servings smallint not null default 1,
   prep_minutes smallint not null default 0,
   cook_minutes smallint not null default 0,
@@ -183,6 +184,7 @@ create index ingredients_default_aisle_id_idx on public.ingredients (default_ais
 create index ingredient_allergens_allergen_id_idx on public.ingredient_allergens (allergen_id);
 create index recipes_owner_user_id_idx on public.recipes (owner_user_id) where owner_user_id is not null;
 create index recipes_published_idx on public.recipes (updated_at desc) where status = 'published';
+create index recipes_dietary_tags_idx on public.recipes using gin (dietary_tags);
 create index recipe_ingredients_recipe_id_idx on public.recipe_ingredients (recipe_id);
 create index recipe_ingredients_ingredient_id_idx on public.recipe_ingredients (ingredient_id);
 create index recipe_steps_recipe_id_idx on public.recipe_steps (recipe_id);

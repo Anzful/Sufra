@@ -1,0 +1,9 @@
+{
+  "extends": "../../tooling/typescript/base.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": true,
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"]
+}

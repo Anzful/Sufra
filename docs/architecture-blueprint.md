@@ -1,6 +1,6 @@
 # Sufra / სუფრა — execution blueprint
 
-Status: Phase 0 complete (research, target architecture, schema, RLS, and Georgia-first reference data). Application and Edge Function code intentionally waits for product confirmation.
+Status: Functional MVP implemented across shared domain code, database/RLS, authenticated AI orchestration, Next.js web, and Expo mobile. Production data ingestion, RLS integration tests, evaluation, and release automation remain.
 
 ## Product position
 
@@ -51,80 +51,24 @@ The government-backed eKalata catalogue currently compares offers across chains 
 - [Example Ori Nabiji offer catalogue](https://ekalata.gov.ge/en/stores/ori-nabiji)
 - [Example Nikora offer catalogue](https://www.ekalata.gov.ge/en/stores/nikora)
 
-## Monorepo target
+## Implemented monorepo
 
 ```text
 Sufra/
 ├── apps/
-│   ├── web/
-│   │   ├── app/
-│   │   │   ├── [locale]/
-│   │   │   │   ├── (auth)/{sign-in,sign-up}/page.tsx
-│   │   │   │   ├── (onboarding)/onboarding/{layout,page}.tsx
-│   │   │   │   └── (app)/{dashboard,plan,recipes,grocery-list,settings}/
-│   │   │   ├── api/{health,webhooks}/route.ts
-│   │   │   ├── actions/{profile,plan,grocery-list}.ts
-│   │   │   ├── layout.tsx
-│   │   │   └── globals.css
-│   │   ├── components/{auth,onboarding,plan,recipe,grocery,ui}/
-│   │   ├── lib/{i18n,supabase,server,env}/
-│   │   ├── messages/{ka,en}.json
-│   │   ├── middleware.ts
-│   │   ├── next.config.ts
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   └── mobile/
-│       ├── app/
-│       │   ├── (auth)/{sign-in,sign-up}.tsx
-│       │   ├── (onboarding)/{index,allergies,budget,nutrition,appliances,review}.tsx
-│       │   ├── (tabs)/{index,plan,grocery,settings}.tsx
-│       │   ├── recipe/[id].tsx
-│       │   └── _layout.tsx
-│       ├── components/{auth,onboarding,plan,recipe,grocery,ui}/
-│       ├── lib/{i18n,supabase,storage,env}/
-│       ├── messages/{ka,en}.json
-│       ├── app.config.ts
-│       ├── package.json
-│       └── tsconfig.json
-├── packages/
-│   └── shared/
-│       ├── src/
-│       │   ├── api/
-│       │   │   ├── contracts/{profile,plan,grocery-list}.ts
-│       │   │   └── client.ts
-│       │   ├── database/{database.types,mappers}.ts
-│       │   ├── domain/{profile,recipe,plan,grocery,pricing}.ts
-│       │   ├── schemas/{profile,recipe,meal-plan,grocery-list}.ts
-│       │   ├── logic/{nutrition,units,grocery-consolidation,budget,plan-validation}/
-│       │   ├── i18n/{constants,formatters}.ts
-│       │   ├── constants/{allergens,appliances,stores}.ts
-│       │   └── index.ts
-│       ├── package.json
-│       ├── tsconfig.json
-│       └── vitest.config.ts
+│   ├── web/src/{app,components,lib}/
+│   └── mobile/{app,src}/
+├── packages/shared/src/{api,database,domain,i18n,logic,schemas}/
 ├── supabase/
-│   ├── functions/
-│   │   ├── _shared/{auth,cors,errors,ai-provider,prompt,schemas,persistence}.ts
-│   │   ├── generate-weekly-plan/index.ts
-│   │   ├── regenerate-meal/index.ts
-│   │   └── refresh-store-pricing/index.ts
+│   ├── functions/{_shared,generate-weekly-plan}/
 │   ├── migrations/
-│   │   ├── 20260829175031_foundation_types.sql
-│   │   ├── 20260829175036_identity_preferences.sql
-│   │   ├── 20260829175040_recipe_catalog.sql
-│   │   ├── 20260829175044_plans_groceries_pricing.sql
-│   │   ├── 20260829175047_rls_grants.sql
-│   │   └── 20260829175050_reference_data.sql
-│   ├── tests/{rls,functions}/
-│   ├── config.toml
-│   └── seed.sql
-├── tooling/{eslint,typescript}/
-├── docs/{architecture-blueprint,api-contracts,pricing-data-policy}.md
-├── .github/workflows/{ci,database}.yml
+│   └── config.toml
+├── tooling/typescript/
+├── docs/architecture-blueprint.md
 ├── package.json
 ├── pnpm-workspace.yaml
-├── turbo.json
-└── tsconfig.json
+├── pnpm-lock.yaml
+└── turbo.json
 ```
 
 Expo Router is the mobile routing choice because it is built on React Navigation and gives the mobile app a file-based structure parallel to the Next.js App Router.
@@ -153,15 +97,15 @@ For OpenAI, the planned integration uses the Responses API with strict JSON Sche
 
 ## Database model
 
-| Area | Main tables | Purpose |
-| --- | --- | --- |
-| Identity | `users`, `profiles` | Public app identity linked 1:1 to `auth.users`; onboarding goals and constraints |
-| Georgia retail | `stores`, `store_translations`, `store_locations`, `store_pricing` | Bilingual chains/branches and timestamped GEL package prices |
-| Preferences | `profile_appliances`, `profile_allergens`, `profile_dietary_patterns`, `profile_ingredient_preferences` | Hard and soft generation constraints |
-| Food catalogue | `ingredients`, `ingredient_translations`, `ingredient_allergens`, `aisles` | Canonical bilingual ingredient identity, allergens, nutrition, and aisle mapping |
-| Recipes | `recipes`, `recipe_translations`, `recipe_ingredients`, `recipe_steps`, `recipe_appliances` | Curated/user/AI recipes with localized content and normalized amounts |
-| Planning | `weekly_plans`, `planned_meals`, `plan_generation_jobs` | Seven-day plan snapshots plus provider/version/audit metadata |
-| Shopping | `pantry_items`, `grocery_lists`, `grocery_list_items` | Consolidated list, pantry deductions, package selection, check-off state |
+| Area           | Main tables                                                                                             | Purpose                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Identity       | `users`, `profiles`                                                                                     | Public app identity linked 1:1 to `auth.users`; onboarding goals and constraints |
+| Georgia retail | `stores`, `store_translations`, `store_locations`, `store_pricing`                                      | Bilingual chains/branches and timestamped GEL package prices                     |
+| Preferences    | `profile_appliances`, `profile_allergens`, `profile_dietary_patterns`, `profile_ingredient_preferences` | Hard and soft generation constraints                                             |
+| Food catalogue | `ingredients`, `ingredient_translations`, `ingredient_allergens`, `aisles`                              | Canonical bilingual ingredient identity, allergens, nutrition, and aisle mapping |
+| Recipes        | `recipes`, `recipe_translations`, `recipe_ingredients`, `recipe_steps`, `recipe_appliances`             | Curated/user/AI recipes with localized content and normalized amounts            |
+| Planning       | `weekly_plans`, `planned_meals`, `plan_generation_jobs`                                                 | Seven-day plan snapshots plus provider/version/audit metadata                    |
+| Shopping       | `pantry_items`, `grocery_lists`, `grocery_list_items`                                                   | Consolidated list, pantry deductions, package selection, check-off state         |
 
 The schema stores time with time zones, money as exact numeric GEL values, indexes every foreign key/access path, and keeps localization in translation tables. A bilingual recipe can therefore be displayed in either language without duplicating nutrition and pricing facts.
 
@@ -183,15 +127,14 @@ These choices track current Supabase guidance on per-operation policies, explici
 - [Supabase user-data guide](https://supabase.com/docs/guides/auth/managing-user-data)
 - [Supabase breaking-change log](https://supabase.com/changelog?types=breaking-change)
 
-## Delivery sequence after approval
+## Delivery status and next sequence
 
-1. Workspace foundation: pnpm/Turborepo, pinned dependencies, shared package, lint/typecheck/test pipelines, Supabase config, and local reset verification.
-2. Shared domain: Zod contracts, generated database types, unit conversions, nutrition calculator, grocery consolidation, budget validator, fixtures, and tests.
-3. Backend: authenticated generation job endpoint, provider adapters, strict schemas/prompts, deterministic validation, transactional persistence, regeneration, and rate/idempotency controls.
-4. Web: SSR Auth, localized routing, onboarding, dashboard, weekly planner, recipes, grocery list, and settings.
-5. Mobile: Expo Router Auth, onboarding, tabs, plan/recipe/list screens, secure session storage, offline list check-off, and deep links.
-6. Data operations: licensed nutrition import, store-price ingestion, freshness indicators, admin review tools, and monitoring.
-7. Quality/security: pgTAP RLS tests, unit/integration/E2E tests, prompt evaluation corpus in Georgian and English, accessibility, privacy copy, and release automation.
+1. Completed: workspace foundation, pinned dependencies, shared schemas/business logic, unit tests, and build pipelines.
+2. Completed: database schema, explicit grants/RLS, Georgia-first reference data, starter recipes, transactional profile save, and generated-plan persistence.
+3. Completed: authenticated structured-output generation endpoint, OpenAI/Anthropic adapters, deterministic grocery/nutrition/budget validation, repair pass, audit records, rate limiting, and idempotency.
+4. Completed MVP: bilingual web and mobile authentication, onboarding, plan, detailed recipe, grocery checklist, language, and settings flows.
+5. Next: licensed nutrition import, permitted store-price ingestion, freshness indicators, admin review tools, and monitoring.
+6. Next: pgTAP RLS tests, hosted integration/E2E tests, Georgian/English prompt evaluation corpus, accessibility audit, privacy copy, meal swapping, pantry editor, and release automation.
 
 ## Acceptance gates
 
