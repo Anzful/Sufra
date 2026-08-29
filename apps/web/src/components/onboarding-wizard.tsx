@@ -1,6 +1,11 @@
 'use client'
 
-import { mealMoodOptions, type Locale, type MealMoodSlug } from '@sufra/shared'
+import {
+  kitchenEquipmentCategory,
+  mealMoodOptions,
+  type Locale,
+  type MealMoodSlug,
+} from '@sufra/shared'
 import { useState, type FormEvent } from 'react'
 import { useFormStatus } from 'react-dom'
 
@@ -118,14 +123,19 @@ export function OnboardingWizard({
               'გაქვს კვების განსაკუთრებული რეჟიმი?',
               'ერთი ვარიანტი აირჩიე — უსაფრთხოება ყოველთვის პრიორიტეტია.',
             ],
-            ['რა ტექნიკა გაქვს?', 'აირჩიე ყველაფერი, რისი გამოყენებაც შეგიძლია.'],
+            [
+              'რა მოსამზადებელი ტექნიკა და ინვენტარი გაქვს სახლში?',
+              'მონიშნე ყველაფერი, რითაც კერძის მომზადება ან პროდუქტების დამუშავება შეგიძლია.',
+            ],
           ],
           back: 'უკან',
           next: 'შემდეგი',
           people: 'ადამიანი',
           budgetSuffix: '₾ კვირაში',
           chooseOne: 'გთხოვ, აირჩიე ერთი ვარიანტი.',
-          chooseAppliance: 'აირჩიე მინიმუმ ერთი ტექნიკა.',
+          chooseAppliance: 'აირჩიე მინიმუმ ერთი ტექნიკა ან ინვენტარი.',
+          cookingEquipment: 'მოსამზადებელი ტექნიკა',
+          preparationEquipment: 'პროდუქტების დასამუშავებელი ინვენტარი',
           none: 'არაფერი',
         }
       : {
@@ -138,18 +148,35 @@ export function OnboardingWizard({
             ["What's your weekly budget?", 'Set the spending ceiling for the whole week in GEL.'],
             ['What are you in the mood for?', 'This shapes the flavour and style of your week.'],
             ['Any dietary needs?', 'Choose one option—food safety always remains a hard rule.'],
-            ['What appliances do you have?', 'Select everything you are happy to cook with.'],
+            [
+              'What cooking and prep equipment do you have at home?',
+              'Select everything you can use to cook meals or prepare ingredients.',
+            ],
           ],
           back: 'Back',
           next: 'Next',
           people: 'people',
           budgetSuffix: 'GEL per week',
           chooseOne: 'Please choose one option.',
-          chooseAppliance: 'Choose at least one appliance.',
+          chooseAppliance: 'Choose at least one piece of kitchen equipment.',
+          cookingEquipment: 'Cooking equipment',
+          preparationEquipment: 'Preparation equipment',
           none: 'None',
         }
 
   const allowedDietaryPatterns = dietaryPatterns.filter((choice) => dietarySlugs.has(choice.slug))
+  const equipmentGroups = [
+    {
+      key: 'cooking',
+      title: copy.cookingEquipment,
+      items: appliances.filter((item) => kitchenEquipmentCategory(item.slug) === 'cooking'),
+    },
+    {
+      key: 'preparation',
+      title: copy.preparationEquipment,
+      items: appliances.filter((item) => kitchenEquipmentCategory(item.slug) === 'preparation'),
+    },
+  ]
   const validStep =
     (step === 0 && preferredStoreId > 0) ||
     (step === 1 && householdSize >= 1 && householdSize <= 20) ||
@@ -330,14 +357,23 @@ export function OnboardingWizard({
           ) : null}
 
           {step === 5 ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {appliances.map((appliance) => (
-                <ChoiceCard
-                  key={appliance.id}
-                  onClick={() => toggleAppliance(appliance.id)}
-                  selected={applianceIds.includes(appliance.id)}
-                  title={appliance.label}
-                />
+            <div className="space-y-7">
+              {equipmentGroups.map((group) => (
+                <section key={group.key}>
+                  <h3 className="mb-3 text-xs font-black tracking-[0.16em] text-[var(--muted)] uppercase">
+                    {group.title}
+                  </h3>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {group.items.map((item) => (
+                      <ChoiceCard
+                        key={item.id}
+                        onClick={() => toggleAppliance(item.id)}
+                        selected={applianceIds.includes(item.id)}
+                        title={item.label}
+                      />
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           ) : null}

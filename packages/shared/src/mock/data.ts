@@ -72,16 +72,26 @@ const storePriceMultipliers: Record<string, number> = {
 }
 
 export const mockAppliances = choices([
-  ['stovetop', 'ქურა', 'Stovetop'],
+  ['stovetop', 'ქურა / გაზქურა', 'Stovetop / gas cooker'],
   ['oven', 'ღუმელი', 'Oven'],
   ['air-fryer', 'აეროგრილი', 'Air Fryer'],
   ['slow-cooker', 'ნელი მოსამზადებელი ქვაბი', 'Slow Cooker'],
   ['blender', 'ბლენდერი', 'Blender'],
-  ['instant-pot', 'მულტიფუნქციური წნევის ქვაბი', 'Instant Pot'],
+  ['instant-pot', 'წნევის / მულტიფუნქციური ქვაბი', 'Pressure Cooker / Instant Pot'],
   ['microwave', 'მიკროტალღური ღუმელი', 'Microwave'],
   ['grill', 'გრილი', 'Grill'],
   ['food-processor', 'სამზარეულოს კომბაინი', 'Food Processor'],
   ['rice-cooker', 'ბრინჯის მოსამზადებელი', 'Rice Cooker'],
+  [
+    'basic-kitchen-tools',
+    'ძირითადი ინვენტარი (დანა, დაფა, ქვაბი, ტაფა)',
+    'Basic tools (knife, board, pots & pans)',
+  ],
+  ['electric-kettle', 'ელექტრო ჩაიდანი', 'Electric Kettle'],
+  ['toaster', 'ტოსტერი', 'Toaster'],
+  ['sandwich-press', 'სენდვიჩის აპარატი', 'Sandwich Press'],
+  ['hand-mixer', 'ხელის მიქსერი', 'Hand Mixer'],
+  ['stand-mixer', 'სტაციონარული მიქსერი', 'Stand Mixer'],
 ])
 
 export const mockAllergens = choices([

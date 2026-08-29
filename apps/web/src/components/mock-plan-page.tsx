@@ -154,7 +154,7 @@ export function MockPlanPage({
           <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-950">
             {locale === 'ka'
               ? `არჩეული კვებითი მოთხოვნებით, მოწყობილობებითა და ${formatGel(profile.budgetAmountGel, locale)}-იან ზღვარში ხელმისაწვდომი დემო რეცეპტები ვერ ეტევა. ნაჩვენებია ბიუჯეტზე ორიენტირებული შესაბამისი გეგმა — შეცვალე ბიუჯეტი ან მოთხოვნები.`
-              : `No eligible combination of the available demo recipes fits the ${formatGel(profile.budgetAmountGel, locale)} ceiling with these dietary and appliance choices. This is a budget-conscious matching plan; adjust the budget or preferences to try again.`}
+              : `No eligible combination of the available demo recipes fits the ${formatGel(profile.budgetAmountGel, locale)} ceiling with these dietary and kitchen-equipment choices. This is a budget-conscious matching plan; adjust the budget or preferences to try again.`}
           </div>
         ) : null}
 

@@ -1,5 +1,6 @@
 export * from './api/index.ts'
 export * from './database/rows.ts'
+export * from './domain/equipment.ts'
 export * from './domain/errors.ts'
 export * from './domain/types.ts'
 export * from './i18n/index.ts'

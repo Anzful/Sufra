@@ -1,6 +1,7 @@
 import {
   createSufraApi,
   getWeekStartDate,
+  kitchenEquipmentCategory,
   mealMoodOptions,
   profileInputSchema,
   type Locale,
@@ -188,7 +189,10 @@ export default function OnboardingScreen() {
             ['რა არის შენი კვირის ბიუჯეტი?', 'მიუთითე მთელი კვირის ზედა ზღვარი ლარში.'],
             ['რის ხასიათზე ხარ?', 'ეს არჩევანი განსაზღვრავს კვირის გემოსა და სტილს.'],
             ['გაქვს კვების განსაკუთრებული რეჟიმი?', 'ერთი ვარიანტი აირჩიე.'],
-            ['რა ტექნიკა გაქვს?', 'აირჩიე ყველაფერი, რისი გამოყენებაც შეგიძლია.'],
+            [
+              'რა მოსამზადებელი ტექნიკა და ინვენტარი გაქვს სახლში?',
+              'მონიშნე ყველაფერი, რითაც კერძის მომზადება ან პროდუქტების დამუშავება შეგიძლია.',
+            ],
           ],
           next: 'შემდეგი',
           back: 'უკან',
@@ -196,7 +200,9 @@ export default function OnboardingScreen() {
           people: 'ადამიანი',
           weekly: '₾ კვირაში',
           choose: 'აირჩიე ერთი ვარიანტი.',
-          chooseAppliance: 'აირჩიე მინიმუმ ერთი ტექნიკა.',
+          chooseAppliance: 'აირჩიე მინიმუმ ერთი ტექნიკა ან ინვენტარი.',
+          cookingEquipment: 'მოსამზადებელი ტექნიკა',
+          preparationEquipment: 'პროდუქტების დასამუშავებელი ინვენტარი',
           build: 'ჩემი კვირის გეგმის შექმნა',
           building: 'შენი კვირა იგეგმება…',
           invalid: 'გადაამოწმე პასუხები და ხელახლა სცადე.',
@@ -212,7 +218,10 @@ export default function OnboardingScreen() {
             ["What's your weekly budget?", 'Set the spending ceiling for the whole week in GEL.'],
             ['What are you in the mood for?', 'This shapes the flavour and style of your week.'],
             ['Any dietary needs?', 'Choose one option.'],
-            ['What appliances do you have?', 'Select everything you are happy to cook with.'],
+            [
+              'What cooking and prep equipment do you have at home?',
+              'Select everything you can use to cook meals or prepare ingredients.',
+            ],
           ],
           next: 'Next',
           back: 'Back',
@@ -220,12 +229,27 @@ export default function OnboardingScreen() {
           people: 'people',
           weekly: 'GEL per week',
           choose: 'Choose one option.',
-          chooseAppliance: 'Choose at least one appliance.',
+          chooseAppliance: 'Choose at least one piece of kitchen equipment.',
+          cookingEquipment: 'Cooking equipment',
+          preparationEquipment: 'Preparation equipment',
           build: 'Build my weekly plan',
           building: 'Building your week…',
           invalid: 'Review your answers and try again.',
           failed: 'Could not build the plan. Please try again.',
         }
+
+  const equipmentGroups = [
+    {
+      key: 'cooking',
+      title: copy.cookingEquipment,
+      items: appliances.filter((item) => kitchenEquipmentCategory(item.slug) === 'cooking'),
+    },
+    {
+      key: 'preparation',
+      title: copy.preparationEquipment,
+      items: appliances.filter((item) => kitchenEquipmentCategory(item.slug) === 'preparation'),
+    },
+  ]
 
   const validStep =
     (step === 0 && preferredStoreId > 0) ||
@@ -426,17 +450,24 @@ export default function OnboardingScreen() {
           ) : null}
 
           {step === 5 ? (
-            <View style={styles.choices}>
-              {appliances.map((appliance) => (
-                <Chip
-                  key={appliance.id}
-                  label={choiceName(appliance, locale)}
-                  onPress={() => {
-                    setApplianceIds(toggleId(applianceIds, appliance.id))
-                    setMessage('')
-                  }}
-                  selected={applianceIds.includes(appliance.id)}
-                />
+            <View style={styles.equipmentGroups}>
+              {equipmentGroups.map((group) => (
+                <View key={group.key}>
+                  <Text style={styles.equipmentGroupTitle}>{group.title}</Text>
+                  <View style={styles.equipmentChoices}>
+                    {group.items.map((item) => (
+                      <Chip
+                        key={item.id}
+                        label={choiceName(item, locale)}
+                        onPress={() => {
+                          setApplianceIds(toggleId(applianceIds, item.id))
+                          setMessage('')
+                        }}
+                        selected={applianceIds.includes(item.id)}
+                      />
+                    ))}
+                  </View>
+                </View>
               ))}
             </View>
           ) : null}
@@ -564,6 +595,16 @@ const styles = StyleSheet.create({
   },
   questionDescription: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 8 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 22 },
+  equipmentGroups: { gap: 22, marginTop: 22 },
+  equipmentGroupTitle: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  equipmentChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   chip: {
     backgroundColor: colors.paperDeep,
     borderColor: colors.line,

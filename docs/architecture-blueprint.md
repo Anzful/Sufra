@@ -37,11 +37,11 @@ Ask one decision per screen and show why it matters. Hard safety constraints mus
 6. Location and store: city, preferred chain, and later an optional branch. Initial chains are sourced from the Georgian government comparison catalogue.
 7. Budget: daily or weekly ceiling in GEL. Clarify whether the budget covers one person or the whole household; Sufra stores household budget.
 8. Nutrition: direct daily calories and protein/carbohydrate/fat/fiber targets. A later optional calculator can accept temporary age/height/weight/activity inputs and persist only the derived targets, reducing sensitive-data retention.
-9. Cooking: maximum active/cook time and available appliances.
+9. Kitchen setup: available cooking appliances and meal-prep equipment, from a stovetop or oven to basic tools, blenders, and food processors.
 10. Pantry: items already owned, quantities, and optional expiry dates.
 11. Review: show the constraints Sufra will never violate and the softer preferences it may trade off to meet budget.
 
-For the first release, onboarding is complete when language, household size, store, budget, calorie target, allergy confirmation (including “none”), diet, and appliances are known. Macro targets and pantry input can be skipped but should improve the result.
+For the first release, onboarding is complete when language, household size, store, budget, calorie target, allergy confirmation (including “none”), diet, and cooking/prep equipment are known. Macro targets and pantry input can be skipped but should improve the result.
 
 ## Georgia-first pricing
 
