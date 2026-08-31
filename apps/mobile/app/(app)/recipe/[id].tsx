@@ -1,7 +1,8 @@
 import type { Locale, MeasurementUnit } from '@sufra/shared'
+import Ionicons from '@expo/vector-icons/Ionicons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Title } from '@/components/ui'
@@ -9,6 +10,7 @@ import { colors } from '@/lib/colors'
 import { isMockMode } from '@/lib/data-mode'
 import { getMockSnapshot } from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
+import { fontFamilyFor, shadow, typeStyle } from '@/lib/theme'
 import { useLocale } from '@/providers/locale-provider'
 
 interface Translation {
@@ -150,7 +152,7 @@ export default function RecipeScreen() {
   if (loading)
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={colors.wine} />
+        <ActivityIndicator color={colors.emerald} />
       </View>
     )
   if (!recipe)
@@ -167,9 +169,10 @@ export default function RecipeScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text onPress={() => router.back()} style={styles.back}>
-          ‹ {locale === 'ka' ? 'უკან' : 'Back'}
-        </Text>
+        <Pressable onPress={() => router.back()} style={styles.back}>
+          <Ionicons color={colors.emerald} name="arrow-back" size={18} />
+          <Text style={styles.backText}>{locale === 'ka' ? 'უკან' : 'Back'}</Text>
+        </Pressable>
         <Text style={styles.eyebrow}>{locale === 'ka' ? 'რეცეპტი' : 'RECIPE'}</Text>
         <Title>{text?.title ?? recipe.id}</Title>
         {text?.description ? <Text style={styles.description}>{text.description}</Text> : null}
@@ -184,7 +187,9 @@ export default function RecipeScreen() {
           {locale === 'ka' ? 'პორცია' : 'servings'}
         </Text>
 
-        <Text style={styles.sectionTitle}>{locale === 'ka' ? 'ინგრედიენტები' : 'Ingredients'}</Text>
+        <Title level="h2" style={styles.sectionTitle}>
+          {locale === 'ka' ? 'ინგრედიენტები' : 'Ingredients'}
+        </Title>
         <View style={styles.card}>
           {ingredients.map((ingredient) => {
             const note = localized(
@@ -208,7 +213,9 @@ export default function RecipeScreen() {
           })}
         </View>
 
-        <Text style={styles.sectionTitle}>{locale === 'ka' ? 'მომზადება' : 'Method'}</Text>
+        <Title level="h2" style={styles.sectionTitle}>
+          {locale === 'ka' ? 'მომზადება' : 'Method'}
+        </Title>
         <View style={styles.card}>
           {steps.map((step) => (
             <View key={step.id} style={styles.step}>
@@ -258,46 +265,59 @@ const styles = StyleSheet.create({
   },
   content: { padding: 20, paddingBottom: 52 },
   back: {
-    color: colors.wine,
-    fontSize: 15,
-    fontWeight: '800',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.white,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
     marginBottom: 30,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
+  backText: { color: colors.emerald, fontFamily: fontFamilyFor('sans', 600), fontSize: 12 },
   eyebrow: {
-    color: colors.wine,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.7,
+    color: colors.emerald,
+    ...typeStyle('label'),
+    letterSpacing: 1.1,
     marginBottom: 10,
   },
-  description: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 14 },
+  description: { color: colors.muted, ...typeStyle('bodyS'), lineHeight: 23, marginTop: 14 },
   metrics: { flexDirection: 'row', gap: 7, marginTop: 24 },
   metric: {
     alignItems: 'center',
-    backgroundColor: colors.paperDeep,
-    borderRadius: 16,
+    backgroundColor: colors.mintSoft,
+    borderRadius: 18,
     flex: 1,
     paddingVertical: 12,
   },
-  metricValue: { color: colors.ink, fontSize: 16, fontWeight: '900' },
-  metricLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', marginTop: 3 },
-  meta: { color: colors.leaf, fontSize: 13, fontWeight: '800', marginTop: 14 },
+  metricValue: { color: colors.ink, fontFamily: fontFamilyFor('sans', 600), fontSize: 16 },
+  metricLabel: {
+    color: colors.muted,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 9,
+    marginTop: 3,
+  },
+  meta: {
+    color: colors.emerald,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 12,
+    marginTop: 14,
+  },
   sectionTitle: {
-    color: colors.ink,
-    fontFamily: 'Georgia',
-    fontSize: 24,
-    fontWeight: '800',
     marginBottom: 12,
     marginTop: 32,
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderColor: colors.line,
     borderRadius: 22,
     borderWidth: 1,
     overflow: 'hidden',
     paddingHorizontal: 16,
+    ...shadow(1),
   },
   ingredient: {
     alignItems: 'center',
@@ -308,7 +328,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   ingredientName: { color: colors.ink, flex: 1, fontSize: 14, lineHeight: 20 },
-  amount: { color: colors.muted, fontSize: 13, fontWeight: '800' },
+  amount: { color: colors.muted, fontFamily: fontFamilyFor('sans', 600), fontSize: 12 },
   step: {
     borderBottomColor: colors.line,
     borderBottomWidth: 1,
@@ -317,16 +337,20 @@ const styles = StyleSheet.create({
     paddingVertical: 17,
   },
   stepNumber: {
-    color: colors.wine,
-    fontFamily: 'Georgia',
+    color: colors.emerald,
+    fontFamily: fontFamilyFor('sans', 600),
     fontSize: 22,
-    fontWeight: '800',
     width: 26,
   },
   stepCopy: { flex: 1 },
   instruction: { color: colors.ink, fontSize: 14, lineHeight: 21 },
   stepMeta: { color: colors.leaf, fontSize: 11, fontWeight: '800', marginTop: 6 },
-  tip: { backgroundColor: colors.paperDeep, borderRadius: 20, marginTop: 24, padding: 18 },
-  tipTitle: { color: colors.wine, fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+  tip: { backgroundColor: colors.limeSoft, borderRadius: 20, marginTop: 24, padding: 18 },
+  tipTitle: {
+    color: colors.emerald,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 11,
+    letterSpacing: 1,
+  },
   tipText: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 7 },
 })

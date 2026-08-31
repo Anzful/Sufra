@@ -11,6 +11,10 @@ import {
 } from 'react-native'
 
 import { colors } from '@/lib/colors'
+import { Title } from '@/components/title'
+import { fontFamilyFor } from '@/lib/theme'
+
+export { Title }
 
 export function Screen({ children }: PropsWithChildren) {
   return <View style={styles.screen}>{children}</View>
@@ -18,10 +22,6 @@ export function Screen({ children }: PropsWithChildren) {
 
 export function Card({ children, style }: PropsWithChildren<{ style?: ViewStyle }>) {
   return <View style={[styles.card, style]}>{children}</View>
-}
-
-export function Title({ children }: PropsWithChildren) {
-  return <Text style={styles.title}>{children}</Text>
 }
 
 export function Label({ children }: PropsWithChildren) {
@@ -63,41 +63,41 @@ export function PrimaryButton({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
+  screen: { backgroundColor: colors.paper, flex: 1 },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 24,
-    padding: 18,
+    padding: 20,
   },
-  title: {
+  label: {
     color: colors.ink,
-    fontFamily: 'Georgia',
-    fontSize: 34,
-    fontWeight: '700',
-    lineHeight: 40,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 13,
+    marginBottom: 7,
   },
-  label: { color: colors.ink, fontSize: 13, fontWeight: '700', marginBottom: 7 },
   field: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.white,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 17,
     color: colors.ink,
+    fontFamily: fontFamilyFor('sans', 400),
     fontSize: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    minHeight: 54,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
   },
   button: {
     alignItems: 'center',
-    backgroundColor: colors.wine,
+    backgroundColor: colors.emerald,
     borderRadius: 999,
-    minHeight: 50,
+    minHeight: 54,
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: '800' },
+  buttonText: { color: colors.white, fontFamily: fontFamilyFor('sans', 600), fontSize: 15 },
   pressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
   disabled: { opacity: 0.65 },
 })

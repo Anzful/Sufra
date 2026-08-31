@@ -16,8 +16,8 @@ export function AuthForm({ locale }: { locale: Locale }) {
       {mockMode ? (
         <p className="rounded-xl bg-[var(--paper-deep)] px-3 py-2 text-xs leading-5 text-[var(--muted)]">
           {locale === 'ka'
-            ? 'დემო რეჟიმი — მონაცემები შენს მოწყობილობაზე რჩება. ნებისმიერი 8+ სიმბოლოიანი პაროლი იმუშავებს.'
-            : 'Demo mode — data stays on your device. Any password with 8+ characters works.'}
+            ? 'დემო რეჟიმი. მონაცემები შენს მოწყობილობაზე რჩება. ნებისმიერი 8+ სიმბოლოიანი პაროლი იმუშავებს.'
+            : 'Demo mode. Data stays on your device. Any password with 8+ characters works.'}
         </p>
       ) : null}
       <input name="locale" type="hidden" value={locale} />

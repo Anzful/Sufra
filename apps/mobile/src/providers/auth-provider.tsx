@@ -19,7 +19,12 @@ interface AuthState {
   onboardingComplete: boolean | null
   refreshProfile: () => Promise<void>
   signIn: (email: string, password: string) => Promise<string | null>
-  signUp: (email: string, password: string, locale: 'ka' | 'en') => Promise<string | null>
+  signUp: (
+    email: string,
+    password: string,
+    locale: 'ka' | 'en',
+    displayName?: string,
+  ) => Promise<string | null>
   signOut: () => Promise<void>
 }
 
@@ -94,15 +99,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     locale: 'ka' | 'en',
+    displayName?: string,
   ): Promise<string | null> {
     if (isMockMode()) {
-      signUpMock(email)
+      signUpMock(email, displayName)
       return null
     }
     const result = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { locale }, emailRedirectTo: 'sufra://auth/callback' },
+      options: {
+        data: { display_name: displayName?.trim() || undefined, locale },
+        emailRedirectTo: 'sufra://auth/callback',
+      },
     })
     return result.error?.message ?? null
   }

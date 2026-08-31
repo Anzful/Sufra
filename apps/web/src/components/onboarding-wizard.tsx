@@ -121,7 +121,7 @@ export function OnboardingWizard({
             ['რის ხასიათზე ხარ?', 'ეს არჩევანი განსაზღვრავს კვირის გემოსა და სტილს.'],
             [
               'გაქვს კვების განსაკუთრებული რეჟიმი?',
-              'ერთი ვარიანტი აირჩიე — უსაფრთხოება ყოველთვის პრიორიტეტია.',
+              'ერთი ვარიანტი აირჩიე. უსაფრთხოება ყოველთვის პრიორიტეტია.',
             ],
             [
               'რა მოსამზადებელი ტექნიკა და ინვენტარი გაქვს სახლში?',
@@ -147,7 +147,7 @@ export function OnboardingWizard({
             ],
             ["What's your weekly budget?", 'Set the spending ceiling for the whole week in GEL.'],
             ['What are you in the mood for?', 'This shapes the flavour and style of your week.'],
-            ['Any dietary needs?', 'Choose one option—food safety always remains a hard rule.'],
+            ['Any dietary needs?', 'Choose one option. Food safety comes first.'],
             [
               'What cooking and prep equipment do you have at home?',
               'Select everything you can use to cook meals or prepare ingredients.',

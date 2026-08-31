@@ -8,16 +8,21 @@ import {
   type MealMoodSlug,
   type SufraTransport,
 } from '@sufra/shared'
+import Ionicons from '@expo/vector-icons/Ionicons'
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { AuroraBackdrop } from '@/components/aurora'
+import { AnimatedProgress } from '@/components/animated-progress'
+import { Checkbox } from '@/components/checkbox'
 import { Card, Field, PrimaryButton, Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
 import { isMockMode } from '@/lib/data-mode'
 import { generatePlanMock, getMockSnapshot, saveProfileMock } from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
+import { fontFamilyFor, shadow, typeStyle } from '@/lib/theme'
 import { useAuth } from '@/providers/auth-provider'
 import { useLocale } from '@/providers/locale-provider'
 
@@ -322,197 +327,216 @@ export default function OnboardingScreen() {
   if (loading)
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={colors.wine} size="large" />
+        <ActivityIndicator color={colors.emerald} size="large" />
       </View>
     )
 
   const [title, description] = copy.questions[step]!
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => (step > 0 ? setStep((value) => value - 1) : router.back())}
-            style={styles.headerButton}
-          >
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setLocale(locale === 'ka' ? 'en' : 'ka')}
-            style={styles.headerButton}
-          >
-            <Text style={styles.language}>{locale === 'ka' ? 'English' : 'ქართული'}</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.eyebrow}>01 · {locale === 'ka' ? 'შენი გეგმა' : 'YOUR PLAN'}</Text>
-        <Title>
-          {locale === 'ka' ? 'ექვსი პასუხი — მთელი კვირა' : 'Six answers, one complete week'}
-        </Title>
-        <Text style={styles.lead}>
-          {locale === 'ka'
-            ? 'ბოლოს სუფრა მაშინვე შექმნის კერძებს, რეცეპტებსა და საყიდლების სიას.'
-            : 'At the end, Sufra immediately builds your meals, recipes, and grocery list.'}
-        </Text>
-
-        <View style={styles.progress}>
-          {copy.questions.map((_, index) => (
-            <View
-              key={index}
-              style={[styles.progressSegment, index <= step && styles.progressSegmentActive]}
-            />
-          ))}
-        </View>
-
-        <Card style={styles.questionCard}>
-          <Text style={styles.stepCount}>{step + 1} / 6</Text>
-          <Text style={styles.questionTitle}>{title}</Text>
-          <Text style={styles.questionDescription}>{description}</Text>
-
-          {step === 0 ? (
-            <View style={styles.choices}>
-              {stores.map((store) => (
-                <Chip
-                  key={store.id}
-                  label={choiceName(store, locale)}
-                  onPress={() => {
-                    setPreferredStoreId(store.id)
-                    setMessage('')
-                  }}
-                  selected={preferredStoreId === store.id}
-                />
-              ))}
-            </View>
-          ) : null}
-
-          {step === 1 ? (
-            <View style={styles.counter}>
-              <CounterButton
-                label="−"
-                onPress={() => setHouseholdSize((value) => Math.max(1, value - 1))}
-              />
-              <View style={styles.counterValueWrap}>
-                <Text style={styles.counterValue}>{householdSize}</Text>
-                <Text style={styles.counterLabel}>{copy.people}</Text>
-              </View>
-              <CounterButton
-                label="+"
-                onPress={() => setHouseholdSize((value) => Math.min(20, value + 1))}
-              />
-            </View>
-          ) : null}
-
-          {step === 2 ? (
-            <View style={styles.budgetWrap}>
-              <Text style={styles.currency}>₾</Text>
-              <Field
-                keyboardType="decimal-pad"
-                onChangeText={setBudget}
-                style={styles.budgetField}
-                value={budget}
-              />
-              <Text style={styles.budgetLabel}>{copy.weekly}</Text>
-            </View>
-          ) : null}
-
-          {step === 3 ? (
-            <View style={styles.optionList}>
-              {mealMoodOptions.map((option) => (
-                <OptionCard
-                  description={option.description[locale]}
-                  key={option.slug}
-                  onPress={() => {
-                    setMealMoodSlug(option.slug)
-                    setMessage('')
-                  }}
-                  selected={mealMoodSlug === option.slug}
-                  title={option.title[locale]}
-                />
-              ))}
-            </View>
-          ) : null}
-
-          {step === 4 ? (
-            <View style={styles.optionList}>
-              {diets.map((diet) => (
-                <OptionCard
-                  key={diet.id}
-                  onPress={() => {
-                    setDietId(diet.id)
-                    setMessage('')
-                  }}
-                  selected={dietId === diet.id}
-                  title={diet.slug === 'omnivore' ? copy.none : choiceName(diet, locale)}
-                />
-              ))}
-            </View>
-          ) : null}
-
-          {step === 5 ? (
-            <View style={styles.equipmentGroups}>
-              {equipmentGroups.map((group) => (
-                <View key={group.key}>
-                  <Text style={styles.equipmentGroupTitle}>{group.title}</Text>
-                  <View style={styles.equipmentChoices}>
-                    {group.items.map((item) => (
-                      <Chip
-                        key={item.id}
-                        label={choiceName(item, locale)}
-                        onPress={() => {
-                          setApplianceIds(toggleId(applianceIds, item.id))
-                          setMessage('')
-                        }}
-                        selected={applianceIds.includes(item.id)}
-                      />
-                    ))}
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          {message ? <Text style={styles.message}>{message}</Text> : null}
-        </Card>
-
-        <View style={styles.actions}>
-          {step > 0 ? (
+    <AuroraBackdrop>
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
             <Pressable
-              onPress={() => {
-                setMessage('')
-                setStep((value) => Math.max(0, value - 1))
-              }}
-              style={styles.secondaryButton}
+              onPress={() => (step > 0 ? setStep((value) => value - 1) : router.back())}
+              style={styles.headerButton}
             >
-              <Text style={styles.secondaryButtonText}>← {copy.back}</Text>
+              <Ionicons color={colors.ink} name="arrow-back" size={20} />
             </Pressable>
-          ) : (
-            <View />
-          )}
-          <View style={styles.primaryAction}>
-            <PrimaryButton
-              disabled={saving}
-              onPress={step === 5 ? saveAndGenerate : next}
-              title={step === 5 ? (saving ? copy.building : copy.build) : `${copy.next} →`}
-            />
+            <Pressable
+              onPress={() => setLocale(locale === 'ka' ? 'en' : 'ka')}
+              style={styles.headerButton}
+            >
+              <Text style={styles.language}>{locale === 'ka' ? 'English' : 'ქართული'}</Text>
+            </Pressable>
           </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+
+          <Text style={styles.eyebrow}>01 · {locale === 'ka' ? 'შენი გეგმა' : 'YOUR PLAN'}</Text>
+          <Title>
+            {locale === 'ka' ? 'ექვსი პასუხი. მთელი კვირა' : 'Six answers, one complete week'}
+          </Title>
+          <Text style={styles.lead}>
+            {locale === 'ka'
+              ? 'ბოლოს სუფრა მაშინვე შექმნის კერძებს, რეცეპტებსა და საყიდლების სიას.'
+              : 'At the end, Sufra immediately builds your meals, recipes, and grocery list.'}
+          </Text>
+
+          <AnimatedProgress
+            label={locale === 'ka' ? 'პროგრესი' : 'Progress'}
+            style={styles.progress}
+            value={(step + 1) / copy.questions.length}
+            valueLabel={`${step + 1} / ${copy.questions.length}`}
+          />
+
+          <Card style={styles.questionCard}>
+            <Title animated level="h2" style={styles.questionTitle}>
+              {title}
+            </Title>
+            <Text style={styles.questionDescription}>{description}</Text>
+
+            {step === 0 ? (
+              <View style={styles.choices}>
+                {stores.map((store) => (
+                  <Chip
+                    key={store.id}
+                    label={choiceName(store, locale)}
+                    onPress={() => {
+                      setPreferredStoreId(store.id)
+                      setMessage('')
+                    }}
+                    selected={preferredStoreId === store.id}
+                  />
+                ))}
+              </View>
+            ) : null}
+
+            {step === 1 ? (
+              <View style={styles.counter}>
+                <CounterButton
+                  label="−"
+                  onPress={() => setHouseholdSize((value) => Math.max(1, value - 1))}
+                />
+                <View style={styles.counterValueWrap}>
+                  <Text style={styles.counterValue}>{householdSize}</Text>
+                  <Text style={styles.counterLabel}>{copy.people}</Text>
+                </View>
+                <CounterButton
+                  label="+"
+                  onPress={() => setHouseholdSize((value) => Math.min(20, value + 1))}
+                />
+              </View>
+            ) : null}
+
+            {step === 2 ? (
+              <View style={styles.budgetWrap}>
+                <Text style={styles.currency}>₾</Text>
+                <Field
+                  keyboardType="decimal-pad"
+                  onChangeText={setBudget}
+                  style={styles.budgetField}
+                  value={budget}
+                />
+                <Text style={styles.budgetLabel}>{copy.weekly}</Text>
+              </View>
+            ) : null}
+
+            {step === 3 ? (
+              <View style={styles.optionList}>
+                {mealMoodOptions.map((option) => (
+                  <OptionCard
+                    description={option.description[locale]}
+                    key={option.slug}
+                    onPress={() => {
+                      setMealMoodSlug(option.slug)
+                      setMessage('')
+                    }}
+                    selected={mealMoodSlug === option.slug}
+                    title={option.title[locale]}
+                  />
+                ))}
+              </View>
+            ) : null}
+
+            {step === 4 ? (
+              <View style={styles.optionList}>
+                {diets.map((diet) => (
+                  <OptionCard
+                    key={diet.id}
+                    onPress={() => {
+                      setDietId(diet.id)
+                      setMessage('')
+                    }}
+                    selected={dietId === diet.id}
+                    title={diet.slug === 'omnivore' ? copy.none : choiceName(diet, locale)}
+                  />
+                ))}
+              </View>
+            ) : null}
+
+            {step === 5 ? (
+              <View style={styles.equipmentGroups}>
+                {equipmentGroups.map((group) => (
+                  <View key={group.key}>
+                    <Text style={styles.equipmentGroupTitle}>{group.title}</Text>
+                    <View style={styles.equipmentChoices}>
+                      {group.items.map((item) => (
+                        <Chip
+                          key={item.id}
+                          label={choiceName(item, locale)}
+                          onPress={() => {
+                            setApplianceIds(toggleId(applianceIds, item.id))
+                            setMessage('')
+                          }}
+                          selected={applianceIds.includes(item.id)}
+                          showCheckbox
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {message ? <Text style={styles.message}>{message}</Text> : null}
+          </Card>
+
+          <View style={styles.actions}>
+            {step > 0 ? (
+              <Pressable
+                onPress={() => {
+                  setMessage('')
+                  setStep((value) => Math.max(0, value - 1))
+                }}
+                style={styles.secondaryButton}
+              >
+                <Ionicons color={colors.ink} name="arrow-back" size={16} />
+                <Text style={styles.secondaryButtonText}>{copy.back}</Text>
+              </Pressable>
+            ) : (
+              <View />
+            )}
+            <View style={styles.primaryAction}>
+              <PrimaryButton
+                disabled={saving}
+                onPress={step === 5 ? saveAndGenerate : next}
+                title={step === 5 ? (saving ? copy.building : copy.build) : `${copy.next} →`}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </AuroraBackdrop>
   )
 }
 
 function Chip({
   label,
   selected,
+  showCheckbox = false,
   onPress,
 }: {
   label: string
   selected: boolean
+  showCheckbox?: boolean
   onPress: () => void
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.chip, selected && styles.chipSelected]}>
+    <Pressable
+      accessibilityRole={showCheckbox ? 'checkbox' : 'button'}
+      accessibilityState={showCheckbox ? { checked: selected } : { selected }}
+      onPress={onPress}
+      style={[styles.chip, selected && styles.chipSelected]}
+    >
+      {showCheckbox ? (
+        <Checkbox
+          checked={selected}
+          checkedColor={colors.white}
+          checkmarkColor={colors.emerald}
+          size={18}
+          uncheckedColor={selected ? 'rgba(255,255,255,0.5)' : colors.lineStrong}
+        />
+      ) : null}
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
     </Pressable>
   )
@@ -550,7 +574,7 @@ function CounterButton({ label, onPress }: { label: string; onPress: () => void 
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.paper, flex: 1 },
+  safe: { backgroundColor: 'transparent', flex: 1 },
   loading: {
     alignItems: 'center',
     backgroundColor: colors.paper,
@@ -564,36 +588,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
   },
-  headerButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 6 },
-  back: { color: colors.ink, fontSize: 36, lineHeight: 38 },
-  language: { color: colors.wine, fontSize: 14, fontWeight: '800' },
+  headerButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: 13,
+  },
+  language: { color: colors.emerald, fontFamily: fontFamilyFor('sans', 600), fontSize: 11 },
   eyebrow: {
-    color: colors.wine,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.7,
+    color: colors.emerald,
+    ...typeStyle('label'),
+    letterSpacing: 1.1,
     marginBottom: 10,
   },
-  lead: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 12 },
-  progress: { flexDirection: 'row', gap: 6, marginTop: 24 },
-  progressSegment: { backgroundColor: colors.line, borderRadius: 999, flex: 1, height: 5 },
-  progressSegmentActive: { backgroundColor: colors.wine },
-  questionCard: { marginTop: 16, minHeight: 410 },
-  stepCount: {
-    color: colors.wine,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.4,
-  },
+  lead: { color: colors.muted, ...typeStyle('bodyS'), lineHeight: 22, marginTop: 12 },
+  progress: { marginTop: 24 },
+  questionCard: { marginTop: 16, minHeight: 410, ...shadow(1) },
   questionTitle: {
-    color: colors.ink,
-    fontFamily: 'Georgia',
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 25,
     lineHeight: 33,
     marginTop: 10,
   },
-  questionDescription: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 8 },
+  questionDescription: { color: colors.muted, ...typeStyle('bodyS'), lineHeight: 21, marginTop: 8 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 22 },
   equipmentGroups: { gap: 22, marginTop: 22 },
   equipmentGroupTitle: {
@@ -606,16 +626,19 @@ const styles = StyleSheet.create({
   },
   equipmentChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   chip: {
+    alignItems: 'center',
     backgroundColor: colors.paperDeep,
     borderColor: colors.line,
     borderRadius: 999,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
     paddingHorizontal: 14,
     paddingVertical: 11,
   },
-  chipSelected: { backgroundColor: colors.wine, borderColor: colors.wine },
-  chipText: { color: colors.ink, fontSize: 13, fontWeight: '700' },
-  chipTextSelected: { color: 'white' },
+  chipSelected: { backgroundColor: colors.emerald, borderColor: colors.emerald },
+  chipText: { color: colors.ink, fontFamily: fontFamilyFor('sans', 500), fontSize: 12 },
+  chipTextSelected: { color: colors.white },
   optionList: { gap: 10, marginTop: 22 },
   option: {
     backgroundColor: colors.paperDeep,
@@ -624,10 +647,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 15,
   },
-  optionSelected: { backgroundColor: colors.wine, borderColor: colors.wine },
-  optionTitle: { color: colors.ink, fontSize: 14, fontWeight: '900' },
-  optionDescription: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
-  optionTextSelected: { color: 'white' },
+  optionSelected: { backgroundColor: colors.emerald, borderColor: colors.emerald },
+  optionTitle: { color: colors.ink, fontFamily: fontFamilyFor('sans', 600), fontSize: 14 },
+  optionDescription: { color: colors.muted, ...typeStyle('caption'), lineHeight: 18, marginTop: 4 },
+  optionTextSelected: { color: colors.white },
   optionDescriptionSelected: { color: 'rgba(255,255,255,0.76)' },
   counter: {
     alignItems: 'center',
@@ -645,13 +668,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 54,
   },
-  counterButtonText: { color: colors.wine, fontSize: 28, fontWeight: '900' },
+  counterButtonText: {
+    color: colors.emerald,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 28,
+  },
   counterValueWrap: { alignItems: 'center', minWidth: 90 },
-  counterValue: { color: colors.ink, fontFamily: 'Georgia', fontSize: 48, fontWeight: '800' },
+  counterValue: { color: colors.ink, fontFamily: fontFamilyFor('sans', 600), fontSize: 48 },
   counterLabel: { color: colors.muted, fontSize: 13, fontWeight: '700', marginTop: 2 },
   budgetWrap: { alignSelf: 'center', marginTop: 52, minWidth: 220, position: 'relative' },
   currency: {
-    color: colors.wine,
+    color: colors.emerald,
     fontSize: 26,
     fontWeight: '900',
     left: 16,
@@ -676,12 +703,15 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   secondaryButton: {
+    alignItems: 'center',
     borderColor: colors.line,
     borderRadius: 999,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  secondaryButtonText: { color: colors.ink, fontSize: 13, fontWeight: '800' },
+  secondaryButtonText: { color: colors.ink, fontFamily: fontFamilyFor('sans', 600), fontSize: 12 },
   primaryAction: { flexShrink: 1, minWidth: 150 },
 })

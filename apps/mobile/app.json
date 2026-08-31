@@ -7,7 +7,11 @@
     "scheme": "sufra",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ge.sufra.app"
@@ -17,7 +21,12 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": true
     },
-    "plugins": ["expo-router", "expo-sqlite", "expo-splash-screen"],
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-splash-screen",
+      "expo-font"
+    ],
     "experiments": {
       "typedRoutes": true
     }

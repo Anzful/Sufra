@@ -106,8 +106,8 @@ export function signInMock(email: string): void {
   commit(mockSignIn(state, email))
 }
 
-export function signUpMock(email: string): void {
-  commit(mockSignUp(state, email))
+export function signUpMock(email: string, displayName?: string): void {
+  commit(mockSignUp(state, email, displayName))
 }
 
 export function signOutMock(): void {

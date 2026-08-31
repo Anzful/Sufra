@@ -1,13 +1,15 @@
 import {
   classifyPriceFreshness,
+  formatDate,
   formatGel,
   getWeekStartDate,
-  priceObservationAgeDays,
   summarizePriceCoverage,
   type Locale,
   type MeasurementUnit,
   type PriceFreshness,
 } from '@sufra/shared'
+import Ionicons from '@expo/vector-icons/Ionicons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useFocusEffect } from 'expo-router'
 import { useCallback, useState } from 'react'
 import {
@@ -15,17 +17,21 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { Checkbox } from '@/components/checkbox'
+import { SearchBar } from '@/components/search-bar'
 import { Title } from '@/components/ui'
 import { colors } from '@/lib/colors'
 import { isMockMode } from '@/lib/data-mode'
 import { getMockSnapshot, setGroceryCheckedMock } from '@/lib/mock-store'
 import { supabase } from '@/lib/supabase'
+import { fontFamilyFor, shadow, typeStyle } from '@/lib/theme'
 import { useLocale } from '@/providers/locale-provider'
 
 interface Item {
@@ -48,15 +54,15 @@ interface Item {
 }
 
 const freshnessColors: Record<PriceFreshness, { background: string; foreground: string }> = {
-  fresh: { background: '#e5f5e9', foreground: '#1e6c3d' },
-  aging: { background: '#fff4d8', foreground: '#715314' },
-  stale: { background: '#fff0df', foreground: '#8a4d12' },
-  expired: { background: '#fde8e5', foreground: colors.danger },
+  fresh: { background: colors.mintSoft, foreground: colors.emerald },
+  aging: { background: colors.warningSoft, foreground: colors.warning },
+  stale: { background: colors.limeSoft, foreground: colors.warning },
+  expired: { background: colors.dangerSoft, foreground: colors.danger },
   unavailable: { background: colors.paperDeep, foreground: colors.muted },
 }
 
 function localizedName(rows: Array<{ locale: Locale; name: string }>, locale: Locale): string {
-  return rows.find((row) => row.locale === locale)?.name ?? rows[0]?.name ?? '—'
+  return rows.find((row) => row.locale === locale)?.name ?? rows[0]?.name ?? '·'
 }
 
 function freshnessLabel(item: Item, locale: Locale): string {
@@ -64,14 +70,17 @@ function freshnessLabel(item: Item, locale: Locale): string {
     observedAt: item.store_pricing?.observed_at ?? null,
     validTo: item.store_pricing?.valid_to ?? null,
   })
-  const age = priceObservationAgeDays(item.store_pricing?.observed_at ?? null)
-  if (status === 'unavailable') return locale === 'ka' ? 'ფასი ვერ მოიძებნა' : 'No matched price'
-  if (status === 'expired') return locale === 'ka' ? 'შეთავაზება დასრულდა' : 'Offer expired'
-  if (status === 'fresh')
-    return locale === 'ka' ? `განახლდა ${age} დღის წინ` : `Updated ${age}d ago`
-  if (status === 'aging')
-    return locale === 'ka' ? `გადაამოწმე · ${age} დღე` : `Check price · ${age}d`
-  return locale === 'ka' ? `ძველი ფასი · ${age} დღე` : `Stale price · ${age}d`
+  if (status === 'unavailable') return locale === 'ka' ? 'ფასი არაა' : 'No price'
+  if (status === 'expired') return locale === 'ka' ? 'ვადაგასული' : 'Expired'
+  if (status === 'fresh') return locale === 'ka' ? 'ახალი' : 'Current'
+  if (status === 'aging') return locale === 'ka' ? 'შეამოწმე' : 'Check'
+  return locale === 'ka' ? 'ძველი' : 'Stale'
+}
+
+function addDays(dateValue: string, days: number): string {
+  const date = new Date(`${dateValue}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString()
 }
 
 function sourceLabel(source: NonNullable<Item['store_pricing']>['source'] | null, locale: Locale) {
@@ -87,6 +96,8 @@ export default function GroceryScreen() {
   const [items, setItems] = useState<Item[]>([])
   const [total, setTotal] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState('')
+  const [showOnlyPending, setShowOnlyPending] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -190,10 +201,21 @@ export default function GroceryScreen() {
       )
   }
 
+  async function shareList() {
+    const lines = items.map((item) => {
+      const name = localizedName(item.ingredients.ingredient_translations, locale)
+      const quantity = `${Number(item.purchase_quantity)} ${item.purchase_unit}`
+      return `${item.is_checked ? '✓' : '□'} ${name}, ${quantity}`
+    })
+    await Share.share({
+      message: `${locale === 'ka' ? 'სუფრა, საყიდლების სია' : 'Sufra grocery list'}\n\n${lines.join('\n')}`,
+    })
+  }
+
   if (loading)
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={colors.wine} />
+        <ActivityIndicator color={colors.emerald} />
       </View>
     )
 
@@ -205,125 +227,194 @@ export default function GroceryScreen() {
       validTo: item.store_pricing?.valid_to ?? null,
     })),
   )
+  const normalizedQuery = query.trim().toLocaleLowerCase(locale === 'ka' ? 'ka-GE' : 'en-US')
+  const searchedItems = normalizedQuery
+    ? items.filter((item) => {
+        const searchable = [
+          ...item.ingredients.ingredient_translations.map((translation) => translation.name),
+          ...(item.aisles?.aisle_translations.map((translation) => translation.name) ?? []),
+          sourceLabel(item.store_pricing?.source ?? null, locale),
+          item.purchase_unit,
+        ]
+          .join(' ')
+          .toLocaleLowerCase(locale === 'ka' ? 'ka-GE' : 'en-US')
+        return searchable.includes(normalizedQuery)
+      })
+    : items
+  const filteredItems = showOnlyPending
+    ? searchedItems.filter((item) => !item.is_checked)
+    : searchedItems
+  const groupedItems = Array.from(
+    filteredItems.reduce((groups, item) => {
+      const aisle = item.aisles
+        ? localizedName(item.aisles.aisle_translations, locale)
+        : locale === 'ka'
+          ? 'სხვა'
+          : 'Other'
+      const group = groups.get(aisle)
+      if (group) group.push(item)
+      else groups.set(aisle, [item])
+      return groups
+    }, new Map<string, Item[]>()),
+  )
+  const checkedCount = items.filter((item) => item.is_checked).length
+  const remainingCount = items.length - checkedCount
+  const progress = items.length ? checkedCount / items.length : 0
+  const weekStart = getWeekStartDate()
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScrollView
         contentContainerStyle={styles.content}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.wine} />
+          <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.emerald} />
         }
       >
-        <Text style={styles.eyebrow}>03 · {locale === 'ka' ? 'საყიდლები' : 'GROCERIES'}</Text>
-        <View style={styles.titleRow}>
-          <Title>{locale === 'ka' ? 'საყიდლების სია' : 'Grocery list'}</Title>
-          <Text style={styles.total}>{total === null ? '—' : formatGel(total, locale)}</Text>
+        <View style={styles.header}>
+          <View>
+            <Title style={styles.title}>{locale === 'ka' ? 'საყიდლები' : 'Groceries'}</Title>
+            <Text style={styles.dateRange}>
+              {formatDate(weekStart, locale)} · {formatDate(addDays(weekStart, 6), locale)}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel={locale === 'ka' ? 'სიის გაზიარება' : 'Share list'}
+            accessibilityRole="button"
+            onPress={() => void shareList()}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          >
+            <Ionicons color={colors.emeraldDark} name="share-social-outline" size={20} />
+          </Pressable>
         </View>
-        <Text style={styles.body}>
-          {locale === 'ka'
-            ? 'პროდუქტები გაერთიანებულია და სამზარეულოს მარაგი უკვე გამოკლებულია.'
-            : 'Items are consolidated and your pantry stock has already been subtracted.'}
-        </Text>
-        <View style={styles.coverage}>
-          <View style={styles.coverageMetric}>
-            <Text style={styles.coverageLabel}>{locale === 'ka' ? 'დაფარვა' : 'COVERAGE'}</Text>
-            <Text style={styles.coverageValue}>
-              {coverage.pricedItemCount}/{coverage.requiredItemCount} · {coverage.coveragePercent}%
-            </Text>
+
+        <View style={styles.totalRow}>
+          <View>
+            <Text style={styles.totalLabel}>{locale === 'ka' ? 'კვირის ჯამი' : 'WEEK TOTAL'}</Text>
+            <Text style={styles.total}>{total === null ? '·' : formatGel(total, locale)}</Text>
           </View>
-          <View style={styles.coverageMetric}>
-            <Text style={styles.coverageLabel}>{locale === 'ka' ? 'ახალი' : 'CURRENT'}</Text>
-            <Text style={[styles.coverageValue, { color: colors.leaf }]}>
-              {coverage.freshItemCount}
-            </Text>
-          </View>
-          <View style={styles.coverageMetric}>
-            <Text style={styles.coverageLabel}>{locale === 'ka' ? 'შესამოწმებელი' : 'CHECK'}</Text>
-            <Text style={[styles.coverageValue, { color: '#8a5a12' }]}>
-              {coverage.agingItemCount +
-                coverage.staleItemCount +
-                coverage.expiredItemCount +
-                coverage.unavailableItemCount}
-            </Text>
-          </View>
+          <Text style={styles.productCount}>
+            {items.length} {locale === 'ka' ? 'პროდუქტი' : 'items'}
+          </Text>
         </View>
-        <View style={styles.list}>
-          {items.map((item) => {
-            const aisle = item.aisles
-              ? localizedName(item.aisles.aisle_translations, locale)
-              : locale === 'ka'
-                ? 'სხვა'
-                : 'Other'
-            const freshness = classifyPriceFreshness({
-              observedAt: item.store_pricing?.observed_at ?? null,
-              validTo: item.store_pricing?.valid_to ?? null,
-            })
-            return (
-              <Pressable key={item.id} onPress={() => toggle(item)} style={styles.item}>
-                <View style={[styles.check, item.is_checked && styles.checked]}>
-                  {item.is_checked ? <Text style={styles.tick}>✓</Text> : null}
+
+        <SearchBar
+          cancelLabel={locale === 'ka' ? 'გაუქმება' : 'Cancel'}
+          clearLabel={locale === 'ka' ? 'ძიების გასუფთავება' : 'Clear search'}
+          filterActive={showOnlyPending}
+          filterLabel={locale === 'ka' ? 'დარჩენილი პროდუქტები' : 'Show pending items'}
+          onChangeText={setQuery}
+          onFilterPress={() => setShowOnlyPending((current) => !current)}
+          placeholder={locale === 'ka' ? 'მოძებნე პროდუქტი' : 'Search groceries'}
+          style={styles.search}
+          value={query}
+        />
+
+        <LinearGradient colors={[colors.mintSoft, colors.aquaSoft]} style={styles.progressCard}>
+          <View style={styles.progressCopy}>
+            <Text style={styles.progressValue}>
+              {checkedCount} / {items.length} {locale === 'ka' ? 'შეგროვილია' : 'collected'}
+            </Text>
+            <Text style={styles.progressRemaining}>
+              {locale === 'ka' ? `დარჩა ${remainingCount}` : `${remainingCount} left`}
+            </Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+          </View>
+          <Text style={styles.coverageNote}>
+            {locale === 'ka'
+              ? `${coverage.coveragePercent}% ფასით დაფარული`
+              : `${coverage.coveragePercent}% price coverage`}
+          </Text>
+        </LinearGradient>
+
+        <View style={styles.groups}>
+          {groupedItems.map(([aisle, groupItems]) => (
+            <View key={aisle} style={styles.listGroup}>
+              <View style={styles.groupHeader}>
+                <Text style={styles.groupTitle}>{aisle}</Text>
+                <View style={styles.groupCount}>
+                  <Text style={styles.groupCountText}>{groupItems.length}</Text>
                 </View>
-                <View style={styles.itemCopy}>
-                  <Text style={[styles.name, item.is_checked && styles.done]}>
-                    {localizedName(item.ingredients.ingredient_translations, locale)}
-                  </Text>
-                  <Text style={styles.aisle}>{aisle}</Text>
-                  {item.pantry_deduction_quantity ? (
-                    <Text style={styles.pantry}>
-                      {locale === 'ka' ? 'მარაგიდან' : 'From pantry'}:{' '}
-                      {item.pantry_deduction_quantity}g
-                    </Text>
-                  ) : null}
-                  <View style={styles.priceMetaRow}>
-                    <View
-                      style={[
-                        styles.freshnessBadge,
-                        { backgroundColor: freshnessColors[freshness].background },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.freshnessText,
-                          { color: freshnessColors[freshness].foreground },
-                        ]}
-                      >
-                        {freshnessLabel(item, locale)}
+              </View>
+              {groupItems.map((item, index) => {
+                const freshness = classifyPriceFreshness({
+                  observedAt: item.store_pricing?.observed_at ?? null,
+                  validTo: item.store_pricing?.valid_to ?? null,
+                })
+                return (
+                  <Pressable
+                    accessibilityLabel={localizedName(
+                      item.ingredients.ingredient_translations,
+                      locale,
+                    )}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: item.is_checked }}
+                    key={item.id}
+                    onPress={() => toggle(item)}
+                    style={({ pressed }) => [
+                      styles.item,
+                      index === groupItems.length - 1 && styles.itemLast,
+                      pressed && styles.itemPressed,
+                    ]}
+                  >
+                    <Checkbox checked={item.is_checked} size={25} />
+                    <View style={styles.itemCopy}>
+                      <Text style={[styles.name, item.is_checked && styles.done]}>
+                        {localizedName(item.ingredients.ingredient_translations, locale)}
+                      </Text>
+                      <Text style={styles.quantity}>
+                        {Number(item.purchase_quantity).toFixed(
+                          Number(item.purchase_quantity) % 1 ? 1 : 0,
+                        )}{' '}
+                        {item.purchase_unit}
+                        {item.pantry_deduction_quantity
+                          ? ` · ${locale === 'ka' ? 'მარაგი' : 'pantry'} ${item.pantry_deduction_quantity}g`
+                          : ''}
                       </Text>
                     </View>
-                    {item.store_pricing?.is_promotion ? (
-                      <View style={styles.promoBadge}>
-                        <Text style={styles.promoText}>{locale === 'ka' ? 'აქცია' : 'PROMO'}</Text>
-                      </View>
-                    ) : null}
-                    {item.store_pricing ? (
-                      <Text style={styles.source}>
-                        {sourceLabel(item.store_pricing.source, locale)}
+                    <View style={styles.priceColumn}>
+                      <Text style={styles.price}>
+                        {item.estimated_cost_gel === null
+                          ? '·'
+                          : formatGel(Number(item.estimated_cost_gel), locale)}
                       </Text>
-                    ) : null}
-                  </View>
-                </View>
-                <View>
-                  <Text style={styles.quantity}>
-                    {Number(item.purchase_quantity).toFixed(
-                      Number(item.purchase_quantity) % 1 ? 1 : 0,
-                    )}{' '}
-                    {item.purchase_unit}
-                  </Text>
-                  <Text style={styles.price}>
-                    {item.estimated_cost_gel === null
-                      ? '—'
-                      : formatGel(Number(item.estimated_cost_gel), locale)}
-                  </Text>
-                  {item.store_pricing?.is_promotion &&
-                  item.store_pricing.regular_price_gel !== null ? (
-                    <Text style={styles.regularPrice}>
-                      {formatGel(Number(item.store_pricing.regular_price_gel), locale)}
-                    </Text>
-                  ) : null}
-                </View>
-              </Pressable>
-            )
-          })}
+                      <View
+                        style={[
+                          styles.freshnessBadge,
+                          item.store_pricing?.is_promotion && styles.promoBadge,
+                          {
+                            backgroundColor: item.store_pricing?.is_promotion
+                              ? colors.limeSoft
+                              : freshnessColors[freshness].background,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.freshnessText,
+                            {
+                              color: item.store_pricing?.is_promotion
+                                ? colors.warning
+                                : freshnessColors[freshness].foreground,
+                            },
+                          ]}
+                        >
+                          {item.store_pricing?.is_promotion
+                            ? locale === 'ka'
+                              ? 'აქცია'
+                              : 'Promo'
+                            : freshnessLabel(item, locale)}
+                        </Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                )
+              })}
+            </View>
+          ))}
           {!items.length ? (
             <Text style={styles.empty}>
               {locale === 'ka'
@@ -331,7 +422,28 @@ export default function GroceryScreen() {
                 : 'There is no list for this week yet.'}
             </Text>
           ) : null}
+          {items.length > 0 && groupedItems.length === 0 ? (
+            <View style={styles.noResults}>
+              <Ionicons color={colors.muted} name="search-outline" size={20} />
+              <Text style={styles.noResultsText}>
+                {locale === 'ka' ? 'შესაბამისი პროდუქტი ვერ მოიძებნა.' : 'No matching groceries.'}
+              </Text>
+            </View>
+          ) : null}
         </View>
+
+        {items.length ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void shareList()}
+            style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.shareButtonText}>
+              {locale === 'ka' ? 'სიის გაზიარება' : 'Share grocery list'}
+            </Text>
+            <Ionicons color={colors.white} name="share-outline" size={19} />
+          </Pressable>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   )
@@ -345,86 +457,180 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
-  content: { padding: 20, paddingBottom: 42 },
-  eyebrow: {
-    color: colors.wine,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.7,
-    marginBottom: 10,
-    marginTop: 18,
-  },
-  titleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  total: { color: colors.leaf, fontFamily: 'Georgia', fontSize: 20, fontWeight: '800' },
-  body: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 12 },
-  coverage: {
-    backgroundColor: colors.paperDeep,
-    borderRadius: 18,
+  content: { paddingBottom: 36, paddingHorizontal: 20, paddingTop: 17 },
+  header: {
+    alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 18,
-    padding: 13,
+    justifyContent: 'space-between',
   },
-  coverageMetric: { flex: 1 },
-  coverageLabel: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
-  coverageValue: { color: colors.ink, fontSize: 14, fontWeight: '900', marginTop: 4 },
-  list: {
-    backgroundColor: colors.white,
+  title: { color: colors.emeraldDark, fontSize: 34, lineHeight: 42 },
+  dateRange: {
+    color: colors.muted,
+    fontFamily: fontFamilyFor('sans', 500),
+    fontSize: 12,
+    marginTop: 2,
+  },
+  iconButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
     borderColor: colors.line,
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
-    marginTop: 24,
-    overflow: 'hidden',
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
+  totalRow: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 22,
+  },
+  totalLabel: {
+    color: colors.inkSoft,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 11,
+  },
+  total: {
+    color: colors.emeraldDark,
+    fontFamily: fontFamilyFor('serif', 600),
+    fontSize: 31,
+    lineHeight: 38,
+    marginTop: 1,
+  },
+  productCount: {
+    color: colors.ink,
+    fontFamily: fontFamilyFor('sans', 500),
+    fontSize: 12,
+    marginBottom: 7,
+  },
+  search: { marginTop: 20 },
+  progressCard: {
+    borderRadius: 17,
+    marginTop: 16,
     paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  progressCopy: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  progressValue: {
+    color: colors.emeraldDark,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 12,
+  },
+  progressRemaining: {
+    color: colors.emerald,
+    fontFamily: fontFamilyFor('sans', 500),
+    fontSize: 11,
+  },
+  progressTrack: {
+    backgroundColor: 'rgba(11,107,80,0.14)',
+    borderRadius: 4,
+    height: 5,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  progressFill: { backgroundColor: colors.emerald, borderRadius: 4, height: '100%' },
+  coverageNote: {
+    color: colors.muted,
+    fontFamily: fontFamilyFor('sans', 500),
+    fontSize: 9,
+    marginTop: 8,
+  },
+  groups: { gap: 12, marginTop: 18 },
+  listGroup: {
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    ...shadow(1),
+  },
+  groupHeader: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 42,
+    paddingHorizontal: 15,
+  },
+  groupTitle: {
+    color: colors.ink,
+    fontFamily: fontFamilyFor('serif', 500),
+    fontSize: 15,
+  },
+  groupCount: {
+    alignItems: 'center',
+    backgroundColor: colors.paperDeep,
+    borderRadius: 12,
+    height: 24,
+    justifyContent: 'center',
+    minWidth: 24,
+    paddingHorizontal: 7,
+  },
+  groupCountText: {
+    color: colors.ink,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 10,
   },
   item: {
     alignItems: 'center',
     borderBottomColor: colors.line,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 15,
+    gap: 11,
+    minHeight: 68,
+    paddingHorizontal: 15,
+    paddingVertical: 11,
   },
-  check: {
-    alignItems: 'center',
-    borderColor: colors.muted,
-    borderRadius: 7,
-    borderWidth: 1.5,
-    height: 24,
-    justifyContent: 'center',
-    width: 24,
-  },
-  checked: { backgroundColor: colors.wine, borderColor: colors.wine },
-  tick: { color: 'white', fontSize: 14, fontWeight: '900' },
+  itemLast: { borderBottomWidth: 0 },
+  itemPressed: { backgroundColor: colors.paper },
   itemCopy: { flex: 1 },
-  name: { color: colors.ink, fontSize: 15, fontWeight: '800' },
+  name: { color: colors.ink, fontFamily: fontFamilyFor('sans', 500), fontSize: 14 },
   done: { color: colors.muted, textDecorationLine: 'line-through' },
-  aisle: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  pantry: { color: colors.leaf, fontSize: 10, marginTop: 2 },
-  priceMetaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
-    marginTop: 6,
+  quantity: {
+    color: colors.muted,
+    fontFamily: fontFamilyFor('sans', 400),
+    fontSize: 10,
+    marginTop: 3,
   },
-  freshnessBadge: { borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3 },
-  freshnessText: { fontSize: 9, fontWeight: '800' },
-  promoBadge: {
-    backgroundColor: colors.wine,
+  priceColumn: { alignItems: 'flex-end', minWidth: 76 },
+  price: {
+    color: colors.ink,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 12,
+    textAlign: 'right',
+  },
+  freshnessBadge: {
     borderRadius: 999,
-    paddingHorizontal: 7,
+    marginTop: 5,
+    paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  promoText: { color: colors.white, fontSize: 8, fontWeight: '900' },
-  source: { color: colors.leaf, fontSize: 9, fontWeight: '800' },
-  quantity: { color: colors.ink, fontSize: 12, fontWeight: '800', textAlign: 'right' },
-  price: { color: colors.muted, fontSize: 11, marginTop: 3, textAlign: 'right' },
-  regularPrice: {
-    color: colors.muted,
-    fontSize: 9,
-    marginTop: 2,
-    textAlign: 'right',
-    textDecorationLine: 'line-through',
-  },
+  promoBadge: { minWidth: 48 },
+  freshnessText: { fontFamily: fontFamilyFor('sans', 600), fontSize: 8 },
   empty: { color: colors.muted, paddingVertical: 24, textAlign: 'center' },
+  noResults: { alignItems: 'center', paddingVertical: 34 },
+  noResultsText: { color: colors.muted, marginTop: 8, textAlign: 'center' },
+  shareButton: {
+    alignItems: 'center',
+    backgroundColor: colors.emeraldBlack,
+    borderRadius: 24,
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    marginTop: 18,
+    minHeight: 54,
+    ...shadow(1),
+  },
+  shareButtonText: {
+    color: colors.white,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 14,
+  },
 })

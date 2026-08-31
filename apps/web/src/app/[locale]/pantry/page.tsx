@@ -28,7 +28,7 @@ interface TranslationRow {
 }
 
 function localized(rows: TranslationRow[], locale: Locale): string {
-  return rows.find((row) => row.locale === locale)?.name ?? rows[0]?.name ?? '—'
+  return rows.find((row) => row.locale === locale)?.name ?? rows[0]?.name ?? '·'
 }
 
 export default async function PantryPage({ params }: { params: Promise<{ locale: string }> }) {

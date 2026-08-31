@@ -313,7 +313,7 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
               </p>
               <p className="display-face text-2xl">
                 {plan.estimated_cost_gel === null
-                  ? '—'
+                  ? '·'
                   : formatGel(Number(plan.estimated_cost_gel), locale)}
               </p>
             </div>
@@ -414,7 +414,7 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
             <div className="surface mt-6 divide-y divide-[var(--line)] rounded-3xl px-5">
               {groceries.map((item) => {
                 const name =
-                  localized(item.ingredients.ingredient_translations, locale)?.name ?? '—'
+                  localized(item.ingredients.ingredient_translations, locale)?.name ?? '·'
                 const aisle = item.aisles
                   ? localized(item.aisles.aisle_translations, locale)?.name
                   : null
@@ -440,7 +440,7 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
                     </span>
                     <span className="w-16 text-right text-sm text-[var(--muted)]">
                       {item.estimated_cost_gel === null
-                        ? '—'
+                        ? '·'
                         : formatGel(Number(item.estimated_cost_gel), locale)}
                     </span>
                   </div>
@@ -481,7 +481,7 @@ export default async function PlanPage({ params }: { params: Promise<{ locale: s
                 <dd className="font-bold">
                   {groceryListResult.data?.estimated_total_gel === null ||
                   groceryListResult.data?.estimated_total_gel === undefined
-                    ? '—'
+                    ? '·'
                     : formatGel(Number(groceryListResult.data.estimated_total_gel), locale)}
                 </dd>
               </div>

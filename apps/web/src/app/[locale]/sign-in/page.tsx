@@ -38,7 +38,7 @@ export default async function SignInPage({ params }: { params: Promise<{ locale:
           </h1>
           <p className="mt-5 text-lg leading-8 text-[var(--muted)]">
             {locale === 'ka'
-              ? 'შედი არსებულ ანგარიშში ან შექმენი ახალი — პირველ გეგმამდე მხოლოდ რამდენიმე კითხვა დაგრჩება.'
+              ? 'შედი არსებულ ანგარიშში ან შექმენი ახალი. პირველ გეგმამდე მხოლოდ რამდენიმე კითხვა დაგრჩება.'
               : 'Sign in or create an account. A few thoughtful questions are all that stand between you and your first plan.'}
           </p>
         </div>
