@@ -7,11 +7,7 @@
     "scheme": "sufra",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "platforms": ["ios", "android", "web"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ge.sufra.app"
@@ -24,7 +20,12 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#082d23"
+        }
+      ],
       "expo-font"
     ],
     "experiments": {

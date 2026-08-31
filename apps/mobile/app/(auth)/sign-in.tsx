@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Checkbox } from '@/components/checkbox'
 import { InfiniteCarousel } from '@/components/infinite-carousel'
 import { SufraBrand } from '@/components/sufra-brand'
+import { SufraPreloader } from '@/components/sufra-preloader'
 import { SufraWelcomeButton } from '@/components/sufra-welcome-button'
 import { colors } from '@/lib/colors'
 import { isMockMode } from '@/lib/data-mode'
@@ -37,6 +38,8 @@ const welcomeMarket = require('../../assets/images/carousel-market.jpg')
 const signInHero = require('../../assets/images/sufra-auth-signin.png')
 const registerHero = require('../../assets/images/sufra-auth-register.png')
 
+const AUTH_TRANSITION_MS = 1050
+
 type AuthMode = 'welcome' | 'signIn' | 'signUp'
 type Locale = 'ka' | 'en'
 
@@ -48,6 +51,11 @@ interface WelcomeSlide {
 
 const welcomeSlides: readonly WelcomeSlide[] = [
   {
+    id: 'market',
+    image: welcomeMarket,
+    title: { ka: 'ახალი პროდუქტები', en: 'Fresh ingredients' },
+  },
+  {
     id: 'table',
     image: welcomeFeast,
     title: { ka: 'ქართული გემო', en: 'Georgian table' },
@@ -57,16 +65,18 @@ const welcomeSlides: readonly WelcomeSlide[] = [
     image: welcomeBalcony,
     title: { ka: 'ძველი თბილისი', en: 'Old Tbilisi' },
   },
-  {
-    id: 'market',
-    image: welcomeMarket,
-    title: { ka: 'ახალი პროდუქტები', en: 'Fresh ingredients' },
-  },
 ]
 
 const copy = {
   ka: {
     welcomeTitle: 'გემრიელი კვირა\nიწყება აქ',
+    welcomeSupport: 'კვირის მენიუ და საყიდლების სია,\nშენს ბიუჯეტზე მორგებული.',
+    startPlanning: 'დაიწყე დაგეგმვა',
+    weekPlan: 'კვირის გეგმა',
+    weekSummary: '7 დღე · 21 კვება',
+    alreadyHaveAccount: 'უკვე გაქვს ანგარიში?',
+    signingIn: 'შენს ანგარიშს ვხსნით',
+    signingUp: 'შენს ანგარიშს ვქმნით',
     signIn: 'შესვლა',
     signUp: 'რეგისტრაცია',
     signInIntro: 'შედი და დაგეგმე კვირა.',
@@ -92,6 +102,13 @@ const copy = {
   },
   en: {
     welcomeTitle: 'A delicious week\nstarts here',
+    welcomeSupport: 'A weekly menu and grocery list,\nbuilt around your budget.',
+    startPlanning: 'Start planning',
+    weekPlan: 'Weekly plan',
+    weekSummary: '7 days · 21 meals',
+    alreadyHaveAccount: 'Already have an account?',
+    signingIn: 'Opening your account',
+    signingUp: 'Creating your account',
     signIn: 'Sign in',
     signUp: 'Create account',
     signInIntro: 'Sign in and plan your week.',
@@ -212,6 +229,32 @@ function LanguageControl({ locale, onPress }: { locale: Locale; onPress: () => v
   )
 }
 
+function WelcomePlanPreview({ locale }: { locale: Locale }) {
+  const strings = copy[locale]
+
+  return (
+    <View
+      accessibilityLabel={`${strings.weekPlan}, ${strings.weekSummary}`}
+      style={[styles.planPreview, shadow(1)]}
+    >
+      <View style={styles.planPreviewIcon}>
+        <Ionicons color="#72b89d" name="calendar-clear-outline" size={23} />
+      </View>
+      <View style={styles.planPreviewCopy}>
+        <Text style={styles.planPreviewTitle}>{strings.weekPlan}</Text>
+        <Text style={styles.planPreviewMeta}>{strings.weekSummary}</Text>
+      </View>
+      <View style={styles.planPreviewCheck}>
+        <Ionicons color={colors.white} name="checkmark" size={20} />
+      </View>
+    </View>
+  )
+}
+
+function wait(duration: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, duration))
+}
+
 function AuthSubmitButton({
   busy,
   compact = false,
@@ -292,13 +335,14 @@ export default function SignInScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [pending, setPending] = useState(false)
+  const [authenticating, setAuthenticating] = useState(false)
   const [message, setMessage] = useState('')
   const emailRef = useRef<TextInput>(null)
   const passwordRef = useRef<TextInput>(null)
   const confirmPasswordRef = useRef<TextInput>(null)
   const creatingAccount = mode === 'signUp'
   const strings = copy[locale]
-  const carouselHeight = Math.min(Math.max(screenHeight * 0.39, 300), 360)
+  const carouselHeight = Math.min(Math.max(screenHeight * 0.39, 300), 350)
 
   function changeMode(nextMode: AuthMode) {
     setMessage('')
@@ -328,10 +372,13 @@ export default function SignInScreen() {
     }
 
     setPending(true)
+    setAuthenticating(true)
     setMessage('')
-    const error = creatingAccount
-      ? await signUp(email.trim(), password, locale, displayName.trim())
-      : await signIn(email.trim(), password)
+    const authRequest = creatingAccount
+      ? signUp(email.trim(), password, locale, displayName.trim())
+      : signIn(email.trim(), password)
+    const [error] = await Promise.all([authRequest, wait(AUTH_TRANSITION_MS)])
+    setAuthenticating(false)
     setPending(false)
 
     if (error) setMessage(error)
@@ -380,8 +427,8 @@ export default function SignInScreen() {
               itemWidthRatio={0.7}
               keyExtractor={(item) => item.id}
               onIndexChange={setActiveSlide}
-              rotateDeg={1.4}
-              renderItem={({ item }) => (
+              rotateDeg={0}
+              renderItem={({ index, item }) => (
                 <ImageBackground
                   imageStyle={styles.carouselImage}
                   resizeMode="cover"
@@ -389,11 +436,12 @@ export default function SignInScreen() {
                   style={[styles.carouselCard, shadow(2)]}
                 >
                   <LinearGradient
-                    colors={['transparent', 'rgba(1,24,17,0.05)', 'rgba(1,24,17,0.72)']}
-                    locations={[0.44, 0.67, 1]}
+                    colors={['rgba(1,24,17,0.28)', 'transparent', 'rgba(1,24,17,0.18)']}
+                    locations={[0, 0.42, 1]}
                     style={styles.carouselShade}
                   >
                     <Text style={styles.carouselCaption}>{item.title[locale]}</Text>
+                    {index === activeSlide ? <WelcomePlanPreview locale={locale} /> : null}
                   </LinearGradient>
                 </ImageBackground>
               )}
@@ -413,14 +461,22 @@ export default function SignInScreen() {
 
           <View style={styles.welcomeFooter}>
             <Text style={styles.welcomeTitle}>{strings.welcomeTitle}</Text>
-            <View style={styles.welcomeActions}>
-              <SufraWelcomeButton label={strings.signIn} onPress={() => changeMode('signIn')} />
+            <Text style={styles.welcomeSupport}>{strings.welcomeSupport}</Text>
+            <View style={styles.welcomePrimaryAction}>
               <SufraWelcomeButton
-                label={strings.signUp}
+                label={strings.startPlanning}
                 onPress={() => changeMode('signUp')}
-                variant="accent"
               />
             </View>
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={10}
+              onPress={() => changeMode('signIn')}
+              style={({ pressed }) => [styles.welcomeSignIn, pressed && styles.pressed]}
+            >
+              <Text style={styles.welcomeSignInPrompt}>{strings.alreadyHaveAccount} </Text>
+              <Text style={styles.welcomeSignInLink}>{strings.signIn}</Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -428,187 +484,195 @@ export default function SignInScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.authRoot}
-    >
-      <StatusBar style="light" />
-      <ScrollView
-        bounces={false}
-        contentContainerStyle={styles.authScrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={styles.authRoot}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.authFill}
       >
-        <ImageBackground
-          imageStyle={styles.authHeroImage}
-          resizeMode="cover"
-          source={creatingAccount ? registerHero : signInHero}
-          style={[styles.authHero, creatingAccount ? styles.registerHero : styles.signInHero]}
+        <StatusBar style="light" />
+        <ScrollView
+          bounces={false}
+          contentContainerStyle={styles.authScrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <LinearGradient
-            colors={['rgba(1,17,12,0.08)', 'rgba(1,24,17,0.25)', 'rgba(1,22,15,0.57)']}
-            locations={[0, 0.56, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={[styles.authMasthead, { paddingTop: insets.top + 10 }]}>
-            <Pressable
-              accessibilityLabel={locale === 'ka' ? 'უკან' : 'Back'}
-              accessibilityRole="button"
-              hitSlop={8}
-              onPress={() => changeMode('welcome')}
-              style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
-            >
-              <Ionicons color={colors.white} name="arrow-back" size={24} />
-            </Pressable>
-            <SufraBrand inverted />
-            <View style={styles.mastheadBalance} />
-          </View>
-        </ImageBackground>
-
-        <View
-          style={[
-            styles.formSheet,
-            creatingAccount ? styles.registerSheet : styles.signInSheet,
-            { paddingBottom: Math.max(insets.bottom + 18, 32) },
-          ]}
-        >
-          <Text style={[styles.authTitle, creatingAccount && styles.registerTitle]}>
-            {creatingAccount ? strings.signUp : strings.signIn}
-          </Text>
-          <Text style={[styles.authIntro, creatingAccount && styles.registerIntro]}>
-            {creatingAccount ? strings.signUpIntro : strings.signInIntro}
-          </Text>
-
-          <View style={[styles.formFields, creatingAccount && styles.registerFormFields]}>
-            {creatingAccount ? (
-              <AuthField
-                autoCapitalize="words"
-                autoComplete="name"
-                compact
-                icon="person-outline"
-                label={strings.name}
-                onChangeText={setDisplayName}
-                onSubmitEditing={() => emailRef.current?.focus()}
-                placeholder={strings.namePlaceholder}
-                returnKeyType="next"
-                value={displayName}
-              />
-            ) : null}
-
-            <AuthField
-              autoCapitalize="none"
-              autoComplete="email"
-              compact={creatingAccount}
-              icon="mail-outline"
-              inputMode="email"
-              inputRef={emailRef}
-              label={strings.email}
-              onChangeText={setEmail}
-              onSubmitEditing={() => passwordRef.current?.focus()}
-              placeholder="name@example.com"
-              returnKeyType="next"
-              value={email}
+          <ImageBackground
+            imageStyle={styles.authHeroImage}
+            resizeMode="cover"
+            source={creatingAccount ? registerHero : signInHero}
+            style={[styles.authHero, creatingAccount ? styles.registerHero : styles.signInHero]}
+          >
+            <LinearGradient
+              colors={['rgba(1,17,12,0.08)', 'rgba(1,24,17,0.25)', 'rgba(1,22,15,0.57)']}
+              locations={[0, 0.56, 1]}
+              style={StyleSheet.absoluteFill}
             />
+            <View style={[styles.authMasthead, { paddingTop: insets.top + 10 }]}>
+              <Pressable
+                accessibilityLabel={locale === 'ka' ? 'უკან' : 'Back'}
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => changeMode('welcome')}
+                style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+              >
+                <Ionicons color={colors.white} name="arrow-back" size={24} />
+              </Pressable>
+              <SufraBrand inverted />
+              <View style={styles.mastheadBalance} />
+            </View>
+          </ImageBackground>
 
-            <AuthField
-              autoCapitalize="none"
-              autoComplete={creatingAccount ? 'new-password' : 'current-password'}
-              compact={creatingAccount}
-              icon="lock-closed-outline"
-              inputRef={passwordRef}
-              label={strings.password}
-              onChangeText={setPassword}
-              onSubmitEditing={() => {
-                if (creatingAccount) confirmPasswordRef.current?.focus()
-                else void submit()
-              }}
-              onToggleSecure={() => setShowPassword((current) => !current)}
-              placeholder="••••••••"
-              returnKeyType={creatingAccount ? 'next' : 'done'}
-              secureTextEntry={!showPassword}
-              value={password}
-            />
+          <View
+            style={[
+              styles.formSheet,
+              creatingAccount ? styles.registerSheet : styles.signInSheet,
+              { paddingBottom: Math.max(insets.bottom + 18, 32) },
+            ]}
+          >
+            <Text style={[styles.authTitle, creatingAccount && styles.registerTitle]}>
+              {creatingAccount ? strings.signUp : strings.signIn}
+            </Text>
+            <Text style={[styles.authIntro, creatingAccount && styles.registerIntro]}>
+              {creatingAccount ? strings.signUpIntro : strings.signInIntro}
+            </Text>
 
-            {creatingAccount ? (
+            <View style={[styles.formFields, creatingAccount && styles.registerFormFields]}>
+              {creatingAccount ? (
+                <AuthField
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  compact
+                  icon="person-outline"
+                  label={strings.name}
+                  onChangeText={setDisplayName}
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                  placeholder={strings.namePlaceholder}
+                  returnKeyType="next"
+                  value={displayName}
+                />
+              ) : null}
+
               <AuthField
                 autoCapitalize="none"
-                autoComplete="new-password"
-                compact
-                icon="lock-closed-outline"
-                inputRef={confirmPasswordRef}
-                label={strings.confirmPassword}
-                onChangeText={setConfirmPassword}
-                onSubmitEditing={() => void submit()}
-                onToggleSecure={() => setShowConfirmPassword((current) => !current)}
-                placeholder="••••••••"
-                returnKeyType="done"
-                secureTextEntry={!showConfirmPassword}
-                value={confirmPassword}
+                autoComplete="email"
+                compact={creatingAccount}
+                icon="mail-outline"
+                inputMode="email"
+                inputRef={emailRef}
+                label={strings.email}
+                onChangeText={setEmail}
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                placeholder="name@example.com"
+                returnKeyType="next"
+                value={email}
               />
-            ) : null}
-          </View>
 
-          {creatingAccount ? (
-            <SelectableRow
-              checked={acceptedTerms}
-              label={strings.terms}
-              onPress={() => setAcceptedTerms((current) => !current)}
-            >
-              <Text style={styles.selectableText}>
-                {strings.acceptStart}
-                <Text style={styles.inlineLink}>{strings.terms}</Text>
-              </Text>
-            </SelectableRow>
-          ) : (
-            <View style={styles.rememberRow}>
+              <AuthField
+                autoCapitalize="none"
+                autoComplete={creatingAccount ? 'new-password' : 'current-password'}
+                compact={creatingAccount}
+                icon="lock-closed-outline"
+                inputRef={passwordRef}
+                label={strings.password}
+                onChangeText={setPassword}
+                onSubmitEditing={() => {
+                  if (creatingAccount) confirmPasswordRef.current?.focus()
+                  else void submit()
+                }}
+                onToggleSecure={() => setShowPassword((current) => !current)}
+                placeholder="••••••••"
+                returnKeyType={creatingAccount ? 'next' : 'done'}
+                secureTextEntry={!showPassword}
+                value={password}
+              />
+
+              {creatingAccount ? (
+                <AuthField
+                  autoCapitalize="none"
+                  autoComplete="new-password"
+                  compact
+                  icon="lock-closed-outline"
+                  inputRef={confirmPasswordRef}
+                  label={strings.confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  onSubmitEditing={() => void submit()}
+                  onToggleSecure={() => setShowConfirmPassword((current) => !current)}
+                  placeholder="••••••••"
+                  returnKeyType="done"
+                  secureTextEntry={!showConfirmPassword}
+                  value={confirmPassword}
+                />
+              ) : null}
+            </View>
+
+            {creatingAccount ? (
               <SelectableRow
-                checked={remember}
-                compact
-                label={strings.remember}
-                onPress={() => setRemember((current) => !current)}
+                checked={acceptedTerms}
+                label={strings.terms}
+                onPress={() => setAcceptedTerms((current) => !current)}
               >
-                <Text style={styles.selectableText}>{strings.remember}</Text>
+                <Text style={styles.selectableText}>
+                  {strings.acceptStart}
+                  <Text style={styles.inlineLink}>{strings.terms}</Text>
+                </Text>
               </SelectableRow>
+            ) : (
+              <View style={styles.rememberRow}>
+                <SelectableRow
+                  checked={remember}
+                  compact
+                  label={strings.remember}
+                  onPress={() => setRemember((current) => !current)}
+                >
+                  <Text style={styles.selectableText}>{strings.remember}</Text>
+                </SelectableRow>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={pending}
+                  hitSlop={6}
+                  onPress={() => void resetPassword()}
+                >
+                  <Text style={styles.forgotLink}>{strings.forgot}</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {message ? (
+              <View accessibilityLiveRegion="polite" style={styles.messageBox}>
+                <Text style={styles.messageText}>{message}</Text>
+              </View>
+            ) : null}
+
+            <AuthSubmitButton
+              busy={pending}
+              compact={creatingAccount}
+              label={creatingAccount ? strings.signUp : strings.signIn}
+              onPress={() => void submit()}
+            />
+
+            <View style={[styles.alternateRow, creatingAccount && styles.registerAlternateRow]}>
+              <Text style={styles.alternateText}>
+                {creatingAccount ? strings.haveAccount : strings.noAccount}{' '}
+              </Text>
               <Pressable
                 accessibilityRole="button"
-                disabled={pending}
-                hitSlop={6}
-                onPress={() => void resetPassword()}
+                onPress={() => changeMode(creatingAccount ? 'signIn' : 'signUp')}
               >
-                <Text style={styles.forgotLink}>{strings.forgot}</Text>
+                <Text style={styles.alternateLink}>
+                  {creatingAccount ? strings.signIn : strings.signUp}
+                </Text>
               </Pressable>
             </View>
-          )}
-
-          {message ? (
-            <View accessibilityLiveRegion="polite" style={styles.messageBox}>
-              <Text style={styles.messageText}>{message}</Text>
-            </View>
-          ) : null}
-
-          <AuthSubmitButton
-            busy={pending}
-            compact={creatingAccount}
-            label={creatingAccount ? strings.signUp : strings.signIn}
-            onPress={() => void submit()}
-          />
-
-          <View style={[styles.alternateRow, creatingAccount && styles.registerAlternateRow]}>
-            <Text style={styles.alternateText}>
-              {creatingAccount ? strings.haveAccount : strings.noAccount}{' '}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => changeMode(creatingAccount ? 'signIn' : 'signUp')}
-            >
-              <Text style={styles.alternateLink}>
-                {creatingAccount ? strings.signIn : strings.signUp}
-              </Text>
-            </Pressable>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+      {authenticating ? (
+        <SufraPreloader
+          message={creatingAccount ? strings.signingUp : strings.signingIn}
+          presentation="overlay"
+        />
+      ) : null}
+    </View>
   )
 }
 
@@ -638,7 +702,7 @@ const styles = StyleSheet.create({
   },
   languageOptionActive: { color: colors.ink, fontFamily: fontFamilyFor('sans', 600) },
   languageDivider: { color: colors.mutedLight, fontSize: 13, marginHorizontal: 6 },
-  carouselSection: { marginTop: 27 },
+  carouselSection: { marginTop: 20 },
   carouselCard: {
     backgroundColor: colors.paperDeep,
     borderRadius: 25,
@@ -646,12 +710,57 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   carouselImage: { borderRadius: 25 },
-  carouselShade: { flex: 1, justifyContent: 'flex-end', padding: 22 },
+  carouselShade: { flex: 1, padding: 19 },
   carouselCaption: {
     color: colors.white,
+    fontFamily: fontFamilyFor('sans', 500),
+    fontSize: 13,
+    lineHeight: 18,
+    textShadowColor: 'rgba(0,0,0,0.34)',
+    textShadowOffset: { height: 1, width: 0 },
+    textShadowRadius: 5,
+  },
+  planPreview: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderColor: 'rgba(255,255,255,0.62)',
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    bottom: 14,
+    flexDirection: 'row',
+    height: 61,
+    left: 14,
+    paddingHorizontal: 12,
+    position: 'absolute',
+    right: 14,
+  },
+  planPreviewIcon: {
+    alignItems: 'center',
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  planPreviewCopy: { flex: 1, marginLeft: 7 },
+  planPreviewTitle: {
+    color: colors.emeraldBlack,
     fontFamily: fontFamilyFor('serif', 500),
-    fontSize: 18,
-    lineHeight: 25,
+    fontSize: 14,
+    letterSpacing: -0.2,
+    lineHeight: 19,
+  },
+  planPreviewMeta: {
+    color: colors.muted,
+    fontFamily: fontFamilyFor('sans', 400),
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  planPreviewCheck: {
+    alignItems: 'center',
+    backgroundColor: colors.emeraldDark,
+    borderRadius: 17,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
   },
   pagination: {
     alignItems: 'center',
@@ -665,21 +774,46 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: colors.lime, width: 20 },
   welcomeFooter: {
     flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: 12,
+    paddingBottom: 4,
     paddingHorizontal: 24,
+    paddingTop: 21,
   },
   welcomeTitle: {
     color: colors.emeraldBlack,
     fontFamily: fontFamilyFor('serif', 500),
-    fontSize: 32,
+    fontSize: 31,
     letterSpacing: -0.7,
-    lineHeight: 42,
-    marginBottom: 24,
+    lineHeight: 40,
   },
-  welcomeActions: { gap: 13 },
+  welcomeSupport: {
+    color: colors.muted,
+    fontFamily: fontFamilyFor('sans', 400),
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 9,
+  },
+  welcomePrimaryAction: { marginTop: 19 },
+  welcomeSignIn: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    marginTop: 20,
+  },
+  welcomeSignInPrompt: {
+    color: colors.muted,
+    fontFamily: fontFamilyFor('sans', 400),
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  welcomeSignInLink: {
+    color: colors.emerald,
+    fontFamily: fontFamilyFor('sans', 600),
+    fontSize: 13,
+    lineHeight: 18,
+  },
   pressed: { opacity: 0.72 },
   authRoot: { backgroundColor: colors.emeraldBlack, flex: 1 },
+  authFill: { flex: 1 },
   authScrollContent: { backgroundColor: colors.surface, flexGrow: 1 },
   authHero: { backgroundColor: colors.emeraldBlack, width: '100%' },
   signInHero: { height: 320 },
