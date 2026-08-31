@@ -9,6 +9,7 @@ import {
   mockSetMealServings,
   mockSetPantryItem,
   mockSignIn,
+  mockSignUp,
   mockSwapMeal,
   mockToggleGrocery,
 } from './data.ts'
@@ -37,6 +38,14 @@ describe('mock Sufra dataset', () => {
     expect(snapshot.groceryList?.items.find((item) => item.id === 'grocery-chicken')?.checked).toBe(
       true,
     )
+  })
+
+  it('keeps the supplied display name when a mock account is created', () => {
+    const state = mockSignUp(createDefaultMockPersistedState(), 'nino@example.com', 'Nino Beridze')
+
+    expect(state.session?.user.email).toBe('nino@example.com')
+    expect(state.profile.displayName).toBe('Nino Beridze')
+    expect(state.onboardingComplete).toBe(false)
   })
 
   it('recalculates groceries after pantry updates and meal swaps', () => {

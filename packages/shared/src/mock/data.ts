@@ -1168,10 +1168,18 @@ export function mockSignIn(state: MockPersistedState, email: string): MockPersis
   }
 }
 
-export function mockSignUp(state: MockPersistedState, email: string): MockPersistedState {
+export function mockSignUp(
+  state: MockPersistedState,
+  email: string,
+  displayName?: string,
+): MockPersistedState {
   return {
     ...state,
     session: { user: { id: '00000000-0000-4000-8000-000000000001', email } },
+    profile: {
+      ...state.profile,
+      displayName: displayName?.trim() || state.profile.displayName,
+    },
     onboardingComplete: false,
     planReady: false,
     checkedGroceryItemIds: [],
