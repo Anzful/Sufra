@@ -167,5 +167,12 @@ const styles = StyleSheet.create({
   list: { flexGrow: 0, overflow: 'visible' },
   itemContainer: { alignItems: 'center', justifyContent: 'center' },
   contentWrapper: { borderRadius: 28, flex: 1, overflow: 'hidden', width: '100%' },
-  veil: { ...StyleSheet.absoluteFillObject, backgroundColor: '#071d17' },
+  veil: {
+    backgroundColor: '#071d17',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
 })

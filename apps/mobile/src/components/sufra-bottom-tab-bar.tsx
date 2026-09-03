@@ -1,6 +1,6 @@
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { LinearGradient } from 'expo-linear-gradient'
-import { useEffect, useState, type ReactNode } from 'react'
+import { Tabs } from 'expo-router'
+import { useEffect, useState, type ComponentProps, type ReactNode } from 'react'
 import { Keyboard, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
 import Svg, { Defs, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg'
@@ -13,6 +13,9 @@ const horizontalMargin = 12
 const barHeight = 78
 const curveTop = 14
 const notchDepth = 34
+
+type ExpoTabsProps = ComponentProps<typeof Tabs>
+type SufraBottomTabBarProps = Parameters<NonNullable<ExpoTabsProps['tabBar']>>[0]
 
 interface TabItemProps {
   badge?: number
@@ -133,7 +136,11 @@ function CurvedBarBackground({ activeIndex, tabCount }: { activeIndex: number; t
   )
 }
 
-export function SufraBottomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export function SufraBottomTabBar({
+  state,
+  descriptors,
+  navigation,
+}: SufraBottomTabBarProps) {
   const insets = useSafeAreaInsets()
   const [keyboardVisible, setKeyboardVisible] = useState(false)
 

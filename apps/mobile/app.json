@@ -6,15 +6,17 @@
     "orientation": "portrait",
     "scheme": "sufra",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ge.sufra.app"
     },
     "android": {
       "package": "ge.sufra.app",
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": true
     },
     "plugins": [
@@ -26,7 +28,8 @@
           "backgroundColor": "#082d23"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true

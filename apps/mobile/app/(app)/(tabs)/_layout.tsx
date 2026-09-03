@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Tabs } from 'expo-router'
+import type { ColorValue } from 'react-native'
 
 import { SufraBottomTabBar } from '@/components/sufra-bottom-tab-bar'
 import { colors } from '@/lib/colors'
@@ -15,7 +16,7 @@ const tabIcons = {
 } as const
 
 function tabIcon(name: TabIconName) {
-  return ({ color, size }: { color: string; size: number }) => (
+  return ({ color, size }: { color: ColorValue; size: number }) => (
     <Ionicons color={color} name={tabIcons[name]} size={size} />
   )
 }

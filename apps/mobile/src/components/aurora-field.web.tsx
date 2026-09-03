@@ -81,7 +81,7 @@ export function AuroraField({ tone }: AuroraFieldProps) {
 }
 
 const styles = StyleSheet.create({
-  fill: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
+  fill: { bottom: 0, left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0 },
   glow: {
     borderRadius: 300,
     height: 380,
